@@ -12,9 +12,9 @@ interface ResearchSource {
 const apiKey = process.env.API_KEY;
 const ai = new GoogleGenAI({ apiKey: apiKey || '' });
 
-const MODEL_RESEARCH = 'gemini-3-pro-preview';
-const MODEL_SYNTHESIS = 'gemini-3-pro-preview';
-const MODEL_FACT_CHECK = 'gemini-3-pro-preview';
+const MODEL_RESEARCH = 'gemini-2.5-flash';  // gemini-3-pro-preview  로 바꿀 것
+const MODEL_SYNTHESIS = 'gemini-2.5-flash';
+const MODEL_FACT_CHECK = 'gemini-2.5-flash';
 
 // --- Rate Limiting (Simple In-Memory) ---
 // Note: In a serverless environment, this state is not shared across instances.
@@ -304,7 +304,7 @@ async function handleCurriculum(payload: any, res: VercelResponse) {
             contents: prompt,
             config: { tools: [{ googleSearch: {} }] },
         }),
-        55000,
+        180000,
         "Curriculum Research Timeout"
     );
 
@@ -357,7 +357,7 @@ async function handleProfessors(payload: any, res: VercelResponse) {
             contents: prompt,
             config: { tools: [{ googleSearch: {} }] },
         }),
-        55000,
+        180000,
         "Professor Research Timeout"
     );
 
@@ -422,7 +422,7 @@ async function handleTrends(payload: any, res: VercelResponse) {
             contents: prompt,
             config: { tools: [{ googleSearch: {} }] },
         }),
-        55000,
+        180000,
         "Interview Trends Timeout"
     );
 
@@ -438,9 +438,9 @@ async function handleSynthesis(payload: any, res: VercelResponse) {
 
     const profSummary = professors.map((p: any) => `${p.name}: ${p.researchTendency}`).join('\n');
     const context = `
-    [Curriculum]: ${curriculum.substring(0, 800)}
-    [Professors]: ${profSummary.substring(0, 800)}
-    [Trends]: ${trends.substring(0, 800)}
+    [Curriculum (Core Knowledge)]: ${curriculum.substring(0, 1000)}
+    [Interview Trends (Success Cases)]: ${trends.substring(0, 1000)}
+    [Professors (Reference)]: ${profSummary.substring(0, 500)}
   `;
 
     const prompt = `
@@ -451,9 +451,17 @@ async function handleSynthesis(payload: any, res: VercelResponse) {
     ${context}
 
     Tasks:
-    1. Define "Core Strategy" (종합 면접 준비 전략). Selectively extract only the most critical information from the input to form a winning strategy.
+    1. Define "Core Strategy" (종합 면접 준비 전략). 
+       - **CRITICAL**: Focus primarily on **Curriculum (Core Knowledge)** and **Successful Interview Cases**.
+       - Professor research should only be used as supplementary context, not the main focus.
+       - Synthesize a winning strategy based on what students need to KNOW and how they should ANSWER.
+
     2. List 5 "Core Concepts" (핵심 아이디어/키워드). 
-       - For each concept, provide a 'description' and a real-world 'example' application.
+       - **CRITICAL**: The 'keyword' MUST be a short, single phrase (e.g., "Consumer Behavior", "Thermodynamics").
+       - **NEVER** include the professor's name or the description in the 'keyword' field.
+       - 'description': Explain the concept in depth here.
+       - 'example': Provide a concrete real-world application or industry case study.
+
     3. Generate 9 Anticipated Questions (High/Medium/Low difficulty) based on the data.
   `;
 
@@ -466,9 +474,9 @@ async function handleSynthesis(payload: any, res: VercelResponse) {
                 items: {
                     type: Type.OBJECT,
                     properties: {
-                        keyword: { type: Type.STRING },
-                        description: { type: Type.STRING },
-                        example: { type: Type.STRING },
+                        keyword: { type: Type.STRING, description: "Short phrase (max 5 words). NO professor names." },
+                        description: { type: Type.STRING, description: "Detailed explanation of the concept." },
+                        example: { type: Type.STRING, description: "Real-world application example." },
                     },
                 },
             },
