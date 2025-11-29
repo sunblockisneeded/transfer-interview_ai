@@ -1,0 +1,5 @@
+{
+  "name": "TransferPrep AI",
+  "description": "A comprehensive university transfer interview preparation agent that analyzes curriculum, professors, and interview trends using real-time search data.",
+  "requestFramePermissions": []
+}
