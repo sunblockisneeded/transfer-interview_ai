@@ -1,22 +1,50 @@
 import { GoogleGenAI, Type, Schema } from "@google/genai";
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 
-// Define types locally or import if your build process supports it. 
-// For Vercel Serverless Functions in a root /api folder, importing from outside /api 
-// can sometimes be tricky depending on tsconfig, but usually works with Next.js/Vite if configured.
-// To be safe and self-contained, I'll redefine the necessary interfaces for the backend logic 
-// or use 'any' for complex shared types to avoid build issues, 
-// but ideally we should share types. Let's try importing first.
+// Define types locally to avoid build issues in Vercel serverless environment if tsconfig paths are tricky
+// Ideally we import from '../types', but self-contained functions are more robust.
+interface ResearchSource {
+    title: string;
+    uri: string;
+}
 
 // NOTE: We are using process.env.API_KEY here, which is secure on the server.
 const apiKey = process.env.API_KEY;
 const ai = new GoogleGenAI({ apiKey: apiKey || '' });
 
-const MODEL_RESEARCH = 'gemini-1.5-pro';
-const MODEL_SYNTHESIS = 'gemini-1.5-pro';
-const MODEL_FACT_CHECK = 'gemini-1.5-pro';
+const MODEL_RESEARCH = 'gemini-3-pro-preview';
+const MODEL_SYNTHESIS = 'gemini-3-pro-preview';
+const MODEL_FACT_CHECK = 'gemini-3-pro-preview';
 
-// Helper for timeouts
+// --- Rate Limiting (Simple In-Memory) ---
+// Note: In a serverless environment, this state is not shared across instances.
+// For production, use Vercel KV or Upstash.
+const rateLimitMap = new Map<string, number>();
+const RATE_LIMIT_WINDOW = 60 * 1000; // 1 minute
+const MAX_REQUESTS_PER_WINDOW = 10; // 10 requests per minute per IP
+
+const checkRateLimit = (ip: string): boolean => {
+    const now = Date.now();
+    const windowStart = now - RATE_LIMIT_WINDOW;
+
+    // Clean up old entries
+    for (const [key, timestamp] of rateLimitMap.entries()) {
+        if (timestamp < windowStart) {
+            rateLimitMap.delete(key);
+        }
+    }
+
+    const requestCount = Array.from(rateLimitMap.entries()).filter(([key, timestamp]) => key.startsWith(ip) && timestamp > windowStart).length;
+
+    if (requestCount >= MAX_REQUESTS_PER_WINDOW) {
+        return false;
+    }
+
+    rateLimitMap.set(`${ip}-${now}`, now);
+    return true;
+};
+
+// --- Helper for timeouts ---
 const callWithTimeout = async <T>(promise: Promise<T>, timeoutMs: number, errorMessage: string): Promise<T> => {
     let timeoutHandle: any;
     const timeoutPromise = new Promise<never>((_, reject) => {
@@ -119,8 +147,16 @@ const sanitizeInput = (input: string): string => {
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
     // CORS handling
+    const allowedOrigins = process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(',') : ['*'];
+    const origin = req.headers.origin || '';
+
+    // In production, you should set ALLOWED_ORIGINS to your Vercel domain
+    // e.g. https://your-app.vercel.app
+    if (allowedOrigins.includes('*') || allowedOrigins.includes(origin)) {
+        res.setHeader('Access-Control-Allow-Origin', origin || '*');
+    }
+
     res.setHeader('Access-Control-Allow-Credentials', 'true');
-    res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
     res.setHeader(
         'Access-Control-Allow-Headers',
@@ -136,8 +172,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.status(405).json({ error: 'Method Not Allowed' });
     }
 
+    // Rate Limiting
+    const clientIp = (req.headers['x-forwarded-for'] as string) || req.socket.remoteAddress || 'unknown';
+    if (!checkRateLimit(clientIp)) {
+        return res.status(429).json({ error: 'Too many requests. Please try again later.' });
+    }
+
     if (!apiKey) {
-        return res.status(500).json({ error: 'Server configuration error: API_KEY is missing.' });
+        console.error("API_KEY is missing in server environment");
+        return res.status(500).json({ error: 'Server configuration error.' });
     }
 
     const { action, payload } = req.body;
@@ -159,7 +202,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }
     } catch (error: any) {
         console.error('API Error:', error);
-        return res.status(500).json({ error: error.message || 'Internal Server Error' });
+        // Don't leak stack traces to client
+        return res.status(500).json({ error: 'Internal Server Error. Please try again later.' });
     }
 }
 
@@ -253,13 +297,14 @@ async function handleCurriculum(payload: any, res: VercelResponse) {
     - What tracks or new technologies are being emphasized recently?
   `;
 
+    // Reduced timeout to 55s to fit within Vercel's 60s limit (with margin)
     const response = await callWithTimeout(
         ai.models.generateContent({
             model: MODEL_RESEARCH,
             contents: prompt,
             config: { tools: [{ googleSearch: {} }] },
         }),
-        180000,
+        55000,
         "Curriculum Research Timeout"
     );
 
@@ -312,7 +357,7 @@ async function handleProfessors(payload: any, res: VercelResponse) {
             contents: prompt,
             config: { tools: [{ googleSearch: {} }] },
         }),
-        180000,
+        55000,
         "Professor Research Timeout"
     );
 
@@ -377,7 +422,7 @@ async function handleTrends(payload: any, res: VercelResponse) {
             contents: prompt,
             config: { tools: [{ googleSearch: {} }] },
         }),
-        180000,
+        55000,
         "Interview Trends Timeout"
     );
 
@@ -487,11 +532,11 @@ async function handleSynthesis(payload: any, res: VercelResponse) {
     } catch (e) {
         console.warn('Synthesis primary model failed, retrying...', e);
         try {
-            const response = await attemptSynthesis("gemini-1.5-pro");
+            const response = await attemptSynthesis("gemini-2.5-pro");
             parsed = JSON.parse(response.text || "{}");
         } catch (e2) {
             console.warn('Synthesis secondary model failed, retrying...', e2);
-            const response = await attemptSynthesis("gemini-1.5-flash");
+            const response = await attemptSynthesis("gemini-2.5-flash");
             parsed = JSON.parse(response.text || "{}");
         }
     }

@@ -20,6 +20,10 @@
     "@types/node": "^22.14.0",
     "@vercel/node": "^5.5.13",
     "@vitejs/plugin-react": "^5.0.0",
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.3",
+    "express": "^5.1.0",
+    "tsx": "^4.20.6",
     "typescript": "~5.8.2",
     "vite": "^6.2.0"
   }

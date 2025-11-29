@@ -1,4 +1,3 @@
-
 import React, { useState, useRef } from 'react';
 import DOMPurify from 'dompurify';
 import { AnalysisStep, StepStatus, FullReport, ValidationResult, ResearchResult, ProfessorAnalysisResult } from './types';
@@ -7,7 +6,9 @@ import ProgressSteps from './components/ProgressSteps';
 import DetailView from './components/DetailView';
 import OverallView from './components/OverallView';
 import QuestionsView from './components/QuestionsView';
-import { GraduationCap, LayoutDashboard, Layers, MessageSquare, AlertTriangle, Search, RotateCcw, Download, PauseCircle, PlayCircle, Sparkles, LayoutGrid } from 'lucide-react';
+import Sidebar from './components/Sidebar';
+import SearchSection from './components/SearchSection';
+import { LayoutDashboard, Layers, MessageSquare, PauseCircle, PlayCircle, RotateCcw } from 'lucide-react';
 import { analysisRateLimiter } from './utils/rateLimiter';
 
 const INITIAL_STEPS: AnalysisStep[] = [
@@ -35,7 +36,6 @@ function App() {
   const [isValidating, setIsValidating] = useState(false);
   const [steps, setSteps] = useState<AnalysisStep[]>(INITIAL_STEPS);
   const [report, setReport] = useState<FullReport | null>(null);
-  // Default to OVERALL tab as requested
   const [activeTab, setActiveTab] = useState<Tab>(Tab.OVERALL);
   const [validationError, setValidationError] = useState<ValidationResult | null>(null);
   const [researchCache, setResearchCache] = useState<ResearchCache | null>(null);
@@ -86,7 +86,7 @@ function App() {
     setIsValidating(true);
     setResearchCache(null); // Clear cache on new search
 
-    // Check rate limit
+    // Check rate limit (Client-side check, server also has one)
     if (!analysisRateLimiter.check()) {
       const retryAfter = Math.ceil(analysisRateLimiter.getRetryAfter() / 1000);
       setRateLimitError(`요청이 너무 많습니다. ${retryAfter}초 후에 다시 시도해주세요.`);
@@ -359,49 +359,14 @@ function App() {
   return (
     <div className="flex min-h-screen bg-[#f8fafc] font-sans">
 
-      {/* --- Sidebar --- */}
-      <aside className="w-64 bg-[#0f172a] text-white flex-col hidden md:flex h-screen sticky top-0 font-sans shadow-xl z-20">
-        <div className="p-6 border-b border-slate-800/50">
-          <div onClick={scrollToTop} className="flex items-center gap-3 cursor-pointer group">
-            <div className="bg-indigo-600 p-2 rounded-lg group-hover:bg-indigo-500 transition-colors shadow-lg shadow-indigo-900/50">
-              <Sparkles className="text-white w-5 h-5" />
-            </div>
-            <h1 className="text-xl font-bold font-playfair tracking-tight text-slate-100">
-              TransferPrep AI
-            </h1>
-          </div>
-        </div>
-
-        <nav className="flex-1 p-4 space-y-2">
-          <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2 px-3 mt-4">Menu</div>
-          <button className="w-full flex items-center gap-3 px-3 py-3 rounded-lg bg-indigo-600 text-white shadow-lg shadow-indigo-900/50 text-sm font-medium hover:bg-indigo-500 transition-colors">
-            <GraduationCap className="w-5 h-5" />
-            New Prep
-          </button>
-        </nav>
-
-        {/* Action Buttons in Sidebar */}
-        {(university || department || report) && (
-          <div className="p-4 border-t border-slate-800/50 space-y-3">
-            <button
-              onClick={handleReset}
-              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors text-sm"
-            >
-              <RotateCcw className="w-4 h-4" />
-              초기화면으로
-            </button>
-            {report && (
-              <button
-                onClick={handleDownload}
-                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-400 hover:text-indigo-300 hover:bg-slate-800 transition-colors text-sm"
-              >
-                <Download className="w-4 h-4" />
-                보고서 다운로드
-              </button>
-            )}
-          </div>
-        )}
-      </aside>
+      <Sidebar
+        university={university}
+        department={department}
+        report={report}
+        onReset={handleReset}
+        onDownload={handleDownload}
+        onScrollToTop={scrollToTop}
+      />
 
       {/* --- Main Content --- */}
       <main className="flex-1 min-w-0 overflow-auto bg-[#f8fafc]">
@@ -409,7 +374,7 @@ function App() {
         {/* Mobile Header */}
         <div className="md:hidden bg-[#0f172a] text-white p-4 flex justify-between items-center sticky top-0 z-50 shadow-md">
           <div className="flex items-center gap-2">
-            <Sparkles className="text-indigo-500 w-5 h-5" />
+            <PlayCircle className="text-indigo-500 w-5 h-5" />
             <span className="font-playfair font-bold text-lg">TransferPrep AI</span>
           </div>
           {(university || department) && (
@@ -423,125 +388,19 @@ function App() {
 
           {/* Landing / Search Section */}
           {!report && !isAnalyzing && !isValidating && !showRetry && (
-            <div className="flex flex-col items-center justify-center min-h-[70vh] animate-in fade-in slide-in-from-bottom-4 duration-700">
-
-              <div className="text-center mb-12 space-y-6">
-                <h2 className="text-4xl md:text-6xl font-serif-kr font-bold text-[#1e293b] leading-tight tracking-tight">
-                  AI와 함께,<br />
-                  <span className="text-indigo-700">당신의 성공적인 편입을.</span>
-                </h2>
-                <p className="text-lg md:text-xl text-slate-500 font-serif-kr font-light">
-                  목표 대학과 학과를 입력하고,<br className="hidden md:block" />
-                  맞춤형 면접 준비를 시작하세요.
-                </p>
-              </div>
-
-              {/* Rate Limit Message */}
-              {rateLimitError && (
-                <div className="w-full max-w-2xl mb-8 bg-red-50 border border-red-200 rounded-xl p-6 text-left animate-in fade-in zoom-in-95 shadow-sm">
-                  <div className="flex items-start gap-3">
-                    <AlertTriangle className="w-6 h-6 text-red-600 mt-1 flex-shrink-0" />
-                    <div className="flex-1 font-serif-kr">
-                      <h3 className="font-bold text-red-900 text-lg mb-1">
-                        \uc694\uccad \uc81c\ud55c \ucd08\uacfc
-                      </h3>
-                      <p className="text-red-800 mb-4">{rateLimitError}</p>
-                      <button
-                        onClick={() => setRateLimitError(null)}
-                        className="px-4 py-2 bg-red-100 hover:bg-red-200 text-red-800 rounded-lg font-medium transition-colors"
-                      >
-                        \ud655\uc778
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Validation Message */}
-              {validationError && (
-                <div className="w-full max-w-2xl mb-8 bg-amber-50 border border-amber-200 rounded-xl p-6 text-left animate-in fade-in zoom-in-95 shadow-sm">
-                  <div className="flex items-start gap-3">
-                    <AlertTriangle className="w-6 h-6 text-amber-600 mt-1 flex-shrink-0" />
-                    <div className="flex-1 font-serif-kr">
-                      <h3 className="font-bold text-amber-900 text-lg mb-1">
-                        {validationError.isTypo ? "잠시만요, 오타가 있는 것 같아요!" : "정보를 찾을 수 없습니다."}
-                      </h3>
-                      <p className="text-amber-800 mb-4">{validationError.message}</p>
-
-                      {validationError.isTypo && validationError.correctedUniversity && (
-                        <div className="flex flex-col sm:flex-row gap-3">
-                          <button
-                            onClick={confirmCorrection}
-                            className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg font-medium transition-colors shadow-sm"
-                          >
-                            네, "{validationError.correctedUniversity} {validationError.correctedDepartment || department}"(으)로 검색할게요.
-                          </button>
-                          <button
-                            onClick={() => { setValidationError(null); startAnalysis(university, department); }}
-                            className="px-4 py-2 bg-white border border-amber-300 text-amber-700 hover:bg-amber-50 rounded-lg font-medium transition-colors"
-                          >
-                            아니요, 그대로 진행할게요.
-                          </button>
-                        </div>
-                      )}
-
-                      {!validationError.isTypo && !validationError.isValid && (
-                        <button
-                          onClick={() => setValidationError(null)}
-                          className="px-4 py-2 bg-amber-100 hover:bg-amber-200 text-amber-800 rounded-lg font-medium transition-colors"
-                        >
-                          다시 입력하기
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Main Search Form - Updated Horizontal Layout */}
-              {!validationError && (
-                <div className="w-full max-w-2xl space-y-6">
-                  <form onSubmit={handleValidationAndAnalyze} className="flex flex-col md:flex-row gap-4">
-                    <div className="flex-1 bg-white p-1 rounded-xl shadow-sm border border-slate-200 focus-within:ring-2 focus-within:ring-indigo-100 focus-within:border-indigo-300 transition-all flex items-center h-14">
-                      <div className="pl-4 text-slate-400">
-                        <GraduationCap className="w-5 h-5" />
-                      </div>
-                      <input
-                        type="text"
-                        placeholder="대학교 (예: 연세대학교)"
-                        className="w-full px-4 bg-transparent outline-none text-slate-800 placeholder:text-slate-400 font-serif-kr"
-                        value={university}
-                        onChange={(e) => setUniversity(e.target.value)}
-                        required
-                      />
-                    </div>
-
-                    <div className="flex-1 bg-white p-1 rounded-xl shadow-sm border border-slate-200 focus-within:ring-2 focus-within:ring-indigo-100 focus-within:border-indigo-300 transition-all flex items-center h-14">
-                      <div className="pl-4 text-slate-400">
-                        <LayoutGrid className="w-5 h-5" />
-                      </div>
-                      <input
-                        type="text"
-                        placeholder="학과 (예: 컴퓨터과학과)"
-                        className="w-full px-4 bg-transparent outline-none text-slate-800 placeholder:text-slate-400 font-serif-kr"
-                        value={department}
-                        onChange={(e) => setDepartment(e.target.value)}
-                        required
-                      />
-                    </div>
-                  </form>
-
-                  <button
-                    onClick={handleValidationAndAnalyze}
-                    disabled={!university || !department}
-                    className="w-full py-4 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:hover:bg-indigo-600 text-white font-bold text-lg rounded-xl shadow-lg shadow-indigo-200 transition-all flex items-center justify-center gap-2 font-serif-kr tracking-wide"
-                  >
-                    시작하기
-                  </button>
-
-                </div>
-              )}
-            </div>
+            <SearchSection
+              university={university}
+              setUniversity={setUniversity}
+              department={department}
+              setDepartment={setDepartment}
+              onAnalyze={handleValidationAndAnalyze}
+              validationError={validationError}
+              setValidationError={setValidationError}
+              rateLimitError={rateLimitError}
+              setRateLimitError={setRateLimitError}
+              onConfirmCorrection={confirmCorrection}
+              onProceedAnyway={() => { setValidationError(null); startAnalysis(university, department); }}
+            />
           )}
 
           {/* Loading / Progress / Retry State */}
@@ -568,7 +427,7 @@ function App() {
 
               {isValidating && (
                 <div className="flex flex-col items-center justify-center py-20 font-serif-kr">
-                  <Search className="w-12 h-12 text-indigo-500 animate-bounce mb-4" />
+                  <div className="w-12 h-12 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin mb-4"></div>
                   <h3 className="text-xl font-bold text-slate-800">학교 정보를 확인하고 있습니다...</h3>
                 </div>
               )}
