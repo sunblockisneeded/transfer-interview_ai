@@ -146,6 +146,11 @@ const sanitizeInput = (input: string): string => {
 // --- Main Handler ---
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+    // 1. 스위치 확인: 환경변수가 'true'가 아니면 즉시 거절
+    if (process.env.API_ENABLED !== 'true') {
+        return res.status(503).json({ error: "Server is currently closed by admin." });
+    }
+
     // CORS handling
     const allowedOrigins = process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(',') : ['*'];
     const origin = req.headers.origin || '';
