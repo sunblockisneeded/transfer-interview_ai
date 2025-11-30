@@ -34,8 +34,8 @@ const SearchSection: React.FC<SearchSectionProps> = ({
 
             <div className="text-center mb-12 space-y-6">
                 <h2 className="text-4xl md:text-6xl font-serif-kr font-bold text-[#1e293b] leading-tight tracking-tight">
-                    AI와 함께,<br />
-                    <span className="text-indigo-700">당신의 성공적인 편입을.</span>
+                    AI와 함께<br />
+                    <span className="text-indigo-700">당신의 성공적인 편입을</span>
                 </h2>
                 <p className="text-lg md:text-xl text-slate-500 font-serif-kr font-light">
                     목표 대학과 학과를 입력하고,<br className="hidden md:block" />
