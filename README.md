@@ -6,19 +6,21 @@
 
 - **대학/학과 검증**  : 입력한 대학과 학과가 실제로 존재하는지 확인합니다.
 - **커리큘럼 분석**: 1~2학년 핵심 전공 과목과 교육 트렌드를 분석합니다.
-- **교수진 연구 성향 분석**: 주요 교수진을 검색하고, 연구 성향을 **한국어로 3줄 요약**하여 제공합니다.
+- **교수진 연구 성향 분석**: 주요 교수진을 검색하고, 해당 교수의 연구 성향을 **한국어로 요약**하여 제공합니다.
 - **면접 트렌드 분석**: 합격 및 불합격 사례, 학교별 특이사항을 분석합니다.
 - **면접 전략 수립**: 위 정보를 종합하여 핵심 면접 전략, 필수 키워드, 예상 질문(난이도별)을 생성합니다.
 
 ## 🚀 시작하기 (Getting Started)
-https://transfer-interview-ai.vercel.app/ 접속하기 
+1. https://transfer-interview-ai.vercel.app/ 접속하는 방법이 있습니다 
+- vercel로 배포되었습니다.
+- 개별 api 호출 시간이 60초로 제한되어있어 일부 기능들이 재대로 작동하지 않습니다. 따라서 로컬 설치를 권장합니다.
 
 ## 로컬 설치하기 ##
 
 ### 필수 조건 (Prerequisites)
 
 - Node.js (v18 이상 권장)
-- Google Gemini API Key
+- Google Gemini API Key (google AI studio에서 발급)
 
 ### 설치 방법 (Installation)
 
@@ -36,23 +38,14 @@ https://transfer-interview-ai.vercel.app/ 접속하기
 3.  환경 변수 설정:
     루트 경로에 `.env.local` 파일을 생성하고 API 키를 입력하세요:
     ```env
-    API_KEY=your_gemini_api_key_here
+    API_KEY = asdkfihawelrf....  
     API_ENABLED=true
-    ALLOWED_ORIGINS=*
     ```
 
 ### 실행 방법 (Running the Application)
 
 이 애플리케이션은 React 프론트엔드와 Node.js API 서버로 구성되어 있습니다. 두 가지를 모두 실행해야 합니다.
 
-**방법 1: 동시 실행 (권장)**
-`concurrently`가 설정되어 있다면 아래 명령어로 한 번에 실행할 수 있습니다:
-```bash
-npm run dev
-```
-*(참고: `package.json`에 `vite`와 `tsx server.ts`를 동시에 실행하는 스크립트가 설정되어 있어야 합니다. 그렇지 않다면 방법 2를 사용하세요.)*
-
-**방법 2: 개별 실행 (수동)**
 
 1.  **백엔드 서버 실행**:
     터미널을 열고 다음 명령어를 입력합니다:
@@ -66,7 +59,7 @@ npm run dev
     ```bash
     npm run dev
     ```
-    프론트엔드는 `http://localhost:5173`에서 접속할 수 있습니다.
+    프론트엔드는 `http://localhost:3000`에서 접속할 수 있습니다. ctrl + 클릭으로 접속하세요
 
 ## 📂 프로젝트 구조 (Project Structure)
 
