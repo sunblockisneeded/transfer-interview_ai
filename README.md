@@ -87,3 +87,11 @@ npm run dev
 ## 📝 라이선스
 
 이 프로젝트는 교육 목적으로 제작되었습니다.
+=======
+1. Install dependencies:
+   `npm install`
+2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
+3. Run the app:
+ terminal 1 : `npx tsx server.ts`
+ terminal 2 : `npm run dev`
+>>>>>>> a77f55b61b94ce13dd56d5fb32178796ada73a30
