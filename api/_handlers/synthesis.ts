@@ -38,9 +38,9 @@ export async function handleSynthesis(payload: any, res: VercelResponse) {
 
     3. Generate 9 Anticipated Questions (High/Medium/Low difficulty) based on the data.
        Generate anticipated interview questions. What would a professor want to ask a student in an interview?
-       - 'high': High difficulty questions (e.g., deep analysis, critical thinking, real world examples). : 각각의 high difficulty question에 대해 1개의 꼬리 질문을 추가하십시오.
-       - 'medium': Medium difficulty questions (e.g., application of concepts, case studies, testing academic knowledge).
-       - 'low': Low difficulty questions (e.g., basic knowledge, recall, Why do you want to come to our school's ${dept} department over other schools?).
+       - 'high': High difficulty questions - Questions deeply related to your major subject. 각각의 high difficulty question에 대해 1개의 **꼬리 질문을 추가**하십시오.
+       - 'medium': Medium difficulty questions - Questions related to your major subject.
+       - 'low': Low difficulty questions - basic knowledge, recall, Why do you want to come to our school's ${dept} department over other schools?
 
   `;
 
