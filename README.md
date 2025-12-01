@@ -87,4 +87,3 @@
 3. Run the app:
  terminal 1 : `npx tsx server.ts`
  terminal 2 : `npm run dev`
->>>>>>> a77f55b61b94ce13dd56d5fb32178796ada73a30
