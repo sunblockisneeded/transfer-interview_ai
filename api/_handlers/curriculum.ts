@@ -1,5 +1,5 @@
 import type { VercelResponse } from '@vercel/node';
-import { ai, MODEL_RESEARCH, timeContext, currentYear } from '../_config.js';
+import { ai, MODEL_RESEARCH, timeContext, currentYear, TIMEOUTS } from '../_config.js';
 import { callWithTimeout, extractSources, sanitizeInput } from '../_utils.js';
 import { factCheckAndRefine, reviewContent } from '../_agents.js';
 
@@ -46,7 +46,7 @@ export async function handleCurriculum(payload: any, res: VercelResponse) {
             contents: prompt,
             config: { tools: [{ googleSearch: {} }] },
         }),
-        180000,
+        TIMEOUTS.CURRICULUM,
         "Curriculum Research Timeout"
     );
 

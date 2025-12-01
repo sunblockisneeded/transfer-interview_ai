@@ -1,6 +1,6 @@
 import type { VercelResponse } from '@vercel/node';
 import { ai } from '../_config.js';
-import { sanitizeInput } from '../_utils.js';
+import { sanitizeInput, parseJsonSafe } from '../_utils.js';
 
 export async function handleValidate(payload: any, res: VercelResponse) {
     const { uni, dept } = payload;
@@ -44,14 +44,7 @@ export async function handleValidate(payload: any, res: VercelResponse) {
         });
 
         let jsonText = response.text || "{}";
-        jsonText = jsonText.replace(/```json/g, '').replace(/```/g, '').trim();
-        const firstOpen = jsonText.indexOf('{');
-        const lastClose = jsonText.lastIndexOf('}');
-        if (firstOpen !== -1 && lastClose !== -1) {
-            jsonText = jsonText.substring(firstOpen, lastClose + 1);
-        }
-
-        const result = JSON.parse(jsonText);
+        const result = parseJsonSafe(jsonText);
         return res.status(200).json(result);
     } catch (error) {
         console.error("Validation error", error);

@@ -1,6 +1,6 @@
 import type { VercelResponse } from '@vercel/node';
-import { ai, MODEL_RESEARCH, timeContext } from '../_config.js';
-import { callWithTimeout, extractSources } from '../_utils.js';
+import { ai, MODEL_RESEARCH, timeContext, TIMEOUTS } from '../_config.js';
+import { callWithTimeout, extractSources, parseJsonSafe } from '../_utils.js';
 import { factCheckAndRefine } from '../_agents.js';
 
 export async function handleProfessors(payload: any, res: VercelResponse) {
@@ -8,7 +8,7 @@ export async function handleProfessors(payload: any, res: VercelResponse) {
 
     // 1. First, find the list of professors
     const listPrompt = `
-    Find the list of professors for ${uni} ${dept}.
+    Find the list of professors for ${uni} ${dept}. at least 5 professors.
     Output MUST be in Korean.
     
     [Temporal Context]
@@ -35,21 +35,11 @@ export async function handleProfessors(payload: any, res: VercelResponse) {
                     tools: [{ googleSearch: {} }]
                 },
             }),
-            60000,
+            TIMEOUTS.PROFESSOR_LIST,
             "Professor List Search Timeout"
         );
 
-        let listText = listResponse.text || "{}";
-        // Robust JSON extraction
-        const firstOpen = listText.indexOf('{');
-        const lastClose = listText.lastIndexOf('}');
-        if (firstOpen !== -1 && lastClose !== -1) {
-            listText = listText.substring(firstOpen, lastClose + 1);
-        } else {
-            listText = listText.replace(/```json/g, '').replace(/```/g, '').trim();
-        }
-
-        const listJson = JSON.parse(listText);
+        const listJson = parseJsonSafe(listResponse.text || "{}");
         professorNames = listJson.names || [];
     } catch (e) {
         console.error("Failed to get professor list", e);
@@ -104,23 +94,15 @@ export async function handleProfessors(payload: any, res: VercelResponse) {
                 );
                 let text = response.text || "{}";
 
-                // Robust JSON extraction
-                const firstOpen = text.indexOf('{');
-                const lastClose = text.lastIndexOf('}');
-                if (firstOpen !== -1 && lastClose !== -1) {
-                    text = text.substring(firstOpen, lastClose + 1);
-                } else {
-                    text = text.replace(/```json/g, '').replace(/```/g, '').trim();
-                }
-
-                if (text.includes("NULL") && text.length < 20) return null;
-                return JSON.parse(text);
+                const result = parseJsonSafe(text);
+                if (!result || (!result.lab && !result.researchTendency)) return null;
+                return result;
             } catch (e) {
                 return null;
             }
         };
 
-        let result = await attemptSearch(strictPrompt, 40000);
+        let result = await attemptSearch(strictPrompt, TIMEOUTS.PROFESSOR_DETAIL);
 
         if (!result || !result.lab) {
             const relaxedPrompt = `
@@ -140,7 +122,7 @@ export async function handleProfessors(payload: any, res: VercelResponse) {
                   "details": "Unverified - please check manually"
                 }
              `;
-            result = await attemptSearch(relaxedPrompt, 30000);
+            result = await attemptSearch(relaxedPrompt, TIMEOUTS.PROFESSOR_DETAIL);
         }
 
         return result;
@@ -170,7 +152,7 @@ export async function handleProfessors(payload: any, res: VercelResponse) {
             contents: macroPrompt,
             config: { tools: [{ googleSearch: {} }] },
         }),
-        60000,
+        TIMEOUTS.MACRO_ANALYSIS,
         "Macro Analysis Timeout"
     );
 

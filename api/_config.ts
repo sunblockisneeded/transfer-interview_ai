@@ -23,3 +23,11 @@ Your training data is reliable up to 2024. You must treat this as your knowledge
 you should not assume you know anything about events, releases, or facts after this date unless they are explicitly provided by tools or system messages. 
 for example GPT-4o, Gemini 1.5, and Claude 3.5 are now legacy models, and gpt5, gemini3, etc have been released.
 The current time is ${currentYear} - ${currentMonth}.`;
+
+export const TIMEOUTS = {
+    PROFESSOR_LIST: 180000, // 3 minutes
+    PROFESSOR_DETAIL: 180000, // 3 minutes
+    CURRICULUM: 180000, // 3 minutes
+    TRENDS: 180000, // 3 minutes
+    MACRO_ANALYSIS: 180000, // 3 minutes
+};

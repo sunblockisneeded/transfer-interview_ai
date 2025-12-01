@@ -62,3 +62,52 @@ export const extractSources = (response: any): { text: string; sources: any[] } 
 export const sanitizeInput = (input: string): string => {
     return input.replace(/[<>"'`]/g, '').substring(0, 100).trim();
 };
+
+export const parseJsonSafe = (text: string): any => {
+    // 1. Try standard cleanup first
+    let cleaned = text.replace(/```json/g, '').replace(/```/g, '').trim();
+    try {
+        return JSON.parse(cleaned);
+    } catch (e) {
+        // 2. If failed, try to extract the first JSON object using brace counting
+        const firstOpen = text.indexOf('{');
+        if (firstOpen === -1) return {};
+
+        let balance = 0;
+        let inString = false;
+        let escape = false;
+
+        for (let i = firstOpen; i < text.length; i++) {
+            const char = text[i];
+
+            if (escape) {
+                escape = false;
+                continue;
+            }
+            if (char === '\\') {
+                escape = true;
+                continue;
+            }
+            if (char === '"') {
+                inString = !inString;
+                continue;
+            }
+
+            if (!inString) {
+                if (char === '{') balance++;
+                else if (char === '}') {
+                    balance--;
+                    if (balance === 0) {
+                        try {
+                            const candidate = text.substring(firstOpen, i + 1);
+                            return JSON.parse(candidate);
+                        } catch (e2) {
+                            // Keep looking if this wasn't it (unlikely)
+                        }
+                    }
+                }
+            }
+        }
+        return {};
+    }
+};
