@@ -1,6 +1,6 @@
 import { Type, Schema } from "@google/genai";
 import type { VercelResponse } from '@vercel/node';
-import { ai, MODEL_SYNTHESIS, MODEL_MEDIUM, MODEL_LOW, currentYear, currentMonth } from '../_config';
+import { ai, MODEL_SYNTHESIS, MODEL_MEDIUM, MODEL_LOW, currentYear, currentMonth } from '../_config.js';
 
 export async function handleSynthesis(payload: any, res: VercelResponse) {
     const { uni, dept, curriculum, professors, trends } = payload;

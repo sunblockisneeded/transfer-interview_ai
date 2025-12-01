@@ -1,11 +1,11 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { apiKey } from './_config';
-import { checkRateLimit } from './_utils';
-import { handleValidate } from './_handlers/validate';
-import { handleCurriculum } from './_handlers/curriculum';
-import { handleProfessors } from './_handlers/professors';
-import { handleTrends } from './_handlers/trends';
-import { handleSynthesis } from './_handlers/synthesis';
+import { apiKey } from './_config.js';
+import { checkRateLimit } from './_utils.js';
+import { handleValidate } from './_handlers/validate.js';
+import { handleCurriculum } from './_handlers/curriculum.js';
+import { handleProfessors } from './_handlers/professors.js';
+import { handleTrends } from './_handlers/trends.js';
+import { handleSynthesis } from './_handlers/synthesis.js';
 
 // --- Main Handler ---
 

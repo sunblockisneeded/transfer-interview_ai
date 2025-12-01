@@ -1,6 +1,6 @@
 import type { VercelResponse } from '@vercel/node';
-import { ai } from '../_config';
-import { sanitizeInput } from '../_utils';
+import { ai } from '../_config.js';
+import { sanitizeInput } from '../_utils.js';
 
 export async function handleValidate(payload: any, res: VercelResponse) {
     const { uni, dept } = payload;

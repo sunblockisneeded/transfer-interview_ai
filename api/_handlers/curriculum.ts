@@ -1,7 +1,7 @@
 import type { VercelResponse } from '@vercel/node';
-import { ai, MODEL_RESEARCH, timeContext, currentYear } from '../_config';
-import { callWithTimeout, extractSources, sanitizeInput } from '../_utils';
-import { factCheckAndRefine, reviewContent } from '../_agents';
+import { ai, MODEL_RESEARCH, timeContext, currentYear } from '../_config.js';
+import { callWithTimeout, extractSources, sanitizeInput } from '../_utils.js';
+import { factCheckAndRefine, reviewContent } from '../_agents.js';
 
 export async function handleCurriculum(payload: any, res: VercelResponse) {
     const { uni, dept } = payload;

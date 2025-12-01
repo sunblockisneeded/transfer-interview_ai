@@ -1,7 +1,7 @@
 import type { VercelResponse } from '@vercel/node';
-import { ai, MODEL_RESEARCH, timeContext } from '../_config';
-import { callWithTimeout, extractSources } from '../_utils';
-import { factCheckAndRefine } from '../_agents';
+import { ai, MODEL_RESEARCH, timeContext } from '../_config.js';
+import { callWithTimeout, extractSources } from '../_utils.js';
+import { factCheckAndRefine } from '../_agents.js';
 
 export async function handleProfessors(payload: any, res: VercelResponse) {
     const { uni, dept } = payload;

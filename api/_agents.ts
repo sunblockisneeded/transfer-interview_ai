@@ -1,4 +1,4 @@
-import { ai, MODEL_FACT_CHECK, MODEL_RESEARCH, timeContext } from "./_config";
+import { ai, MODEL_FACT_CHECK, MODEL_RESEARCH, timeContext } from "./_config.js";
 
 export const factCheckAndRefine = async (content: string, context: string, sources: any[]): Promise<string> => {
     if (!content || content.length < 50) return content;
