@@ -56,20 +56,18 @@ export async function handleProfessors(payload: any, res: VercelResponse) {
     // 2. Analyze each professor (Sequential with Delay)
     // Limit to 5 to avoid timeouts
     const targetProfessors = professorNames.slice(0, 5);
-    const professorDetails = [];
-
     // Use configured delay or default
     const delayMs = config?.delay || PROFESSOR_ANALYSIS_DELAY || 500;
 
-    for (const name of targetProfessors) {
-        const detail = await attemptSearch(name, safeUni, safeDept, model, detailTimeout, config);
-        professorDetails.push(detail);
-
-        // Add delay between calls (except after the last one)
-        if (targetProfessors.indexOf(name) < targetProfessors.length - 1) {
-            await new Promise(resolve => setTimeout(resolve, delayMs));
-        }
-    }
+    const professorDetails = await Promise.all(
+        targetProfessors.map(async (name, index) => {
+            // Stagger start times
+            if (index > 0) {
+                await new Promise(resolve => setTimeout(resolve, index * delayMs));
+            }
+            return await attemptSearch(name, safeUni, safeDept, model, detailTimeout, config);
+        })
+    );
 
     const validProfessors = professorDetails.filter(p => p !== null);
 
