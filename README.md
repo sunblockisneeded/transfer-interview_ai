@@ -71,6 +71,7 @@
 1. https://transfer-interview-ai.vercel.app/ 접속하는 방법이 있습니다 
 - vercel로 배포되었습니다.
 - 개별 api 호출 시간이 60초로 제한되어있어 일부 기능들이 재대로 작동하지 않습니다. 따라서 로컬 설치를 권장합니다.
+- 간혹 제가 vercel에서 api를 끄도록 설정해두면 접속만 되고 기능들이 아얘 작동하지 않을 수 있습니다. eddie020101@naver.com 으로 메일 보내주시면 켜드리겠습니다.
 
 ## 로컬 설치하기 ##
 
@@ -140,3 +141,11 @@ This project was inspired by **Andrew Ng's Agentic Reviewer** (http://paperrevie
 ## 📝 라이선스
 
 이 프로젝트는 교육 목적으로 제작되었습니다.
+=======
+1. Install dependencies:
+   `npm install`
+2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
+3. Run the app:
+ terminal 1 : `npx tsx server.ts`
+ terminal 2 : `npm run dev`
+ 
