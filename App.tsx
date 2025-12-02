@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import DOMPurify from 'dompurify';
 import { AnalysisStep, StepStatus, FullReport, ValidationResult, ResearchResult, ProfessorAnalysisResult } from './types';
-import { validateUniversityAndDepartment, researchCurriculum, researchProfessorsAndKnowledge, researchInterviewTrends, synthesizeStrategy } from './services/geminiService';
+import { validateUniversityAndDepartment, researchCurriculum, researchProfessorsAndKnowledge, researchInterviewTrends, synthesizeStrategy, synthesizeStrategyOnly, synthesizeQuestionsOnly, auditResearch } from './services/geminiService';
 import ProgressSteps from './components/ProgressSteps';
 import DetailView from './components/DetailView';
 import OverallView from './components/OverallView';
@@ -12,9 +12,34 @@ import { LayoutDashboard, Layers, MessageSquare, PauseCircle, PlayCircle, Rotate
 import { analysisRateLimiter } from './utils/rateLimiter';
 
 const INITIAL_STEPS: AnalysisStep[] = [
-  { id: 'research', label: 'Parallel Research', status: StepStatus.IDLE },
-  { id: 'review', label: 'Review & Format', status: StepStatus.IDLE },
-  { id: 'synthesis', label: 'Strategy Synthesis', status: StepStatus.IDLE },
+  {
+    id: 'research',
+    label: 'Parallel Research',
+    status: StepStatus.IDLE,
+    subSteps: [
+      { label: 'Curriculum Analysis', status: StepStatus.IDLE },
+      { label: 'Professor Analysis', status: StepStatus.IDLE },
+      { label: 'Trend Analysis', status: StepStatus.IDLE }
+    ]
+  },
+  {
+    id: 'review',
+    label: 'Review & Format',
+    status: StepStatus.IDLE,
+    subSteps: [
+      { label: 'Data Validation', status: StepStatus.IDLE },
+      { label: 'Formatting Report', status: StepStatus.IDLE }
+    ]
+  },
+  {
+    id: 'synthesis',
+    label: 'Strategy Synthesis',
+    status: StepStatus.IDLE,
+    subSteps: [
+      { label: 'Strategy Generation', status: StepStatus.IDLE },
+      { label: 'Question Generation', status: StepStatus.IDLE }
+    ]
+  },
 ];
 
 enum Tab {
@@ -43,9 +68,7 @@ function App() {
 
   const abortControllerRef = useRef<AbortController | null>(null);
 
-  const updateStep = (id: string, status: StepStatus) => {
-    setSteps(prev => prev.map(s => s.id === id ? { ...s, status } : s));
-  };
+
 
   const scrollToTop = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -77,7 +100,7 @@ function App() {
     ));
   };
 
-  const handleValidationAndAnalyze = async (e: React.FormEvent) => {
+  const handleValidationAndAnalyze = async (e: React.FormEvent, config?: { timeout: number, model: string }) => {
     e.preventDefault();
     if (!university || !department) return;
 
@@ -122,12 +145,32 @@ function App() {
       }
 
       // Proceed if valid
-      startAnalysis(university, department);
+      startAnalysis(university, department, false, config);
 
     } catch (error) {
       console.error("Validation check failed, proceeding with caution", error);
-      startAnalysis(university, department);
+      startAnalysis(university, department, false, config);
     }
+  };
+
+  const updateStep = (id: string, status: StepStatus) => {
+    setSteps(prev => prev.map(step =>
+      step.id === id ? { ...step, status } : step
+    ));
+  };
+
+  const updateSubStep = (stepId: string, subStepLabel: string, status: StepStatus) => {
+    setSteps(prev => prev.map(step => {
+      if (step.id === stepId && step.subSteps) {
+        return {
+          ...step,
+          subSteps: step.subSteps.map(sub =>
+            sub.label === subStepLabel ? { ...sub, status } : sub
+          )
+        };
+      }
+      return step;
+    }));
   };
 
   const confirmCorrection = () => {
@@ -141,13 +184,12 @@ function App() {
     );
   };
 
-  const startAnalysis = async (uni: string, dept: string, useCache = false) => {
+  const startAnalysis = async (uni: string, dept: string, useCache = false, config?: { timeout: number, model: string }) => {
     setIsAnalyzing(true);
     setIsValidating(false);
     setReport(null);
-    setActiveTab(Tab.OVERALL); // Ensure it switches to Overall view when analysis starts/restarts
+    setActiveTab(Tab.OVERALL);
 
-    // Create new AbortController
     const controller = new AbortController();
     abortControllerRef.current = controller;
 
@@ -158,13 +200,48 @@ function App() {
 
       // --- STEP 1: RESEARCH ---
       if (!useCache || !researchCache) {
-        setSteps(INITIAL_STEPS); // Reset UI steps
+        setSteps(INITIAL_STEPS);
         updateStep('research', StepStatus.LOADING);
 
+        // Initialize sub-steps to loading
+        updateSubStep('research', 'Curriculum Analysis', StepStatus.LOADING);
+        updateSubStep('research', 'Professor Analysis', StepStatus.LOADING);
+        updateSubStep('research', 'Trend Analysis', StepStatus.LOADING);
+
+        const curriculumPromise = researchCurriculum(uni, dept, config)
+          .then(res => {
+            updateSubStep('research', 'Curriculum Analysis', StepStatus.COMPLETED);
+            return res;
+          })
+          .catch(err => {
+            updateSubStep('research', 'Curriculum Analysis', StepStatus.ERROR);
+            throw err;
+          });
+
+        const professorPromise = researchProfessorsAndKnowledge(uni, dept, config)
+          .then(res => {
+            updateSubStep('research', 'Professor Analysis', StepStatus.COMPLETED);
+            return res;
+          })
+          .catch(err => {
+            updateSubStep('research', 'Professor Analysis', StepStatus.ERROR);
+            throw err;
+          });
+
+        const trendsPromise = researchInterviewTrends(uni, dept, config)
+          .then(res => {
+            updateSubStep('research', 'Trend Analysis', StepStatus.COMPLETED);
+            return res;
+          })
+          .catch(err => {
+            updateSubStep('research', 'Trend Analysis', StepStatus.ERROR);
+            throw err;
+          });
+
         const [curriculumData, professorData, trendsData] = await Promise.all([
-          researchCurriculum(uni, dept),
-          researchProfessorsAndKnowledge(uni, dept),
-          researchInterviewTrends(uni, dept)
+          curriculumPromise,
+          professorPromise,
+          trendsPromise
         ]);
 
         if (controller.signal.aborted) return;
@@ -173,7 +250,6 @@ function App() {
         currentProfessors = professorData;
         currentTrends = trendsData;
 
-        // Save to cache
         setResearchCache({
           curriculum: curriculumData,
           professors: professorData,
@@ -182,34 +258,89 @@ function App() {
 
         updateStep('research', StepStatus.COMPLETED);
       } else {
-        // Recovering from cache
-        setSteps(prev => prev.map(s => {
-          if (s.id === 'research') return { ...s, status: StepStatus.COMPLETED };
-          if (s.id === 'review' || s.id === 'synthesis') return { ...s, status: StepStatus.IDLE };
-          return s;
-        }));
+        // Cached path - just mark research as done
+        updateStep('research', StepStatus.COMPLETED);
+        updateSubStep('research', 'Curriculum Analysis', StepStatus.COMPLETED);
+        updateSubStep('research', 'Professor Analysis', StepStatus.COMPLETED);
+        updateSubStep('research', 'Trend Analysis', StepStatus.COMPLETED);
       }
 
       if (!currentCurriculum || !currentProfessors || !currentTrends) {
         throw new Error("Research data missing");
       }
 
-      // --- STEP 2: REVIEW ---
+      // --- STEP 2: REVIEW (AUDIT) ---
       updateStep('review', StepStatus.LOADING);
-      await new Promise(resolve => setTimeout(resolve, 800));
-      if (controller.signal.aborted) return;
+      updateSubStep('review', 'Data Validation', StepStatus.LOADING);
+
+      // Perform Independent Audit
+      const auditResult = await auditResearch(
+        uni,
+        dept,
+        currentCurriculum!,
+        currentProfessors!,
+        currentTrends!,
+        config
+      );
+
+      if (auditResult.status === 'FAIL') {
+        // If audit fails critically, we might want to stop or warn.
+        // For now, just log and proceed but mark as warning?
+        // Or maybe we just show it in the UI?
+        // Let's mark the step as COMPLETED but maybe show a toast?
+        console.warn("Audit Warning:", auditResult.issues);
+      }
+
+      updateSubStep('review', 'Data Validation', StepStatus.COMPLETED);
+
+      updateSubStep('review', 'Formatting Report', StepStatus.LOADING);
+      // Formatting is still fast/instant as it's just preparing the data structure, 
+      // but we can simulate a brief pause for UX or just finish.
+      await new Promise(resolve => setTimeout(resolve, 500));
+      updateSubStep('review', 'Formatting Report', StepStatus.COMPLETED);
+
       updateStep('review', StepStatus.COMPLETED);
+
+      if (controller.signal.aborted) return;
 
       // --- STEP 3: SYNTHESIS ---
       updateStep('synthesis', StepStatus.LOADING);
-      const strategyData = await synthesizeStrategy(
+      updateSubStep('synthesis', 'Strategy Generation', StepStatus.LOADING);
+      updateSubStep('synthesis', 'Question Generation', StepStatus.IDLE);
+
+      // 1. Strategy Generation (Start)
+      const strategyPromise = synthesizeStrategyOnly(
         uni,
         dept,
         currentCurriculum.text,
         currentProfessors.professors,
         currentTrends.text,
-        controller.signal
-      );
+        config
+      ).then(data => {
+        if (!controller.signal.aborted) {
+          updateSubStep('synthesis', 'Strategy Generation', StepStatus.COMPLETED);
+        }
+        return data;
+      });
+
+      // 2. Question Generation (Start concurrently)
+      updateSubStep('synthesis', 'Question Generation', StepStatus.LOADING);
+      const questionsPromise = synthesizeQuestionsOnly(
+        uni,
+        dept,
+        currentCurriculum.text,
+        currentProfessors.professors,
+        currentTrends.text,
+        config
+      ).then(data => {
+        if (!controller.signal.aborted) {
+          updateSubStep('synthesis', 'Question Generation', StepStatus.COMPLETED);
+        }
+        return data;
+      });
+
+      // Wait for both
+      const [strategyData, questionsData] = await Promise.all([strategyPromise, questionsPromise]);
 
       if (controller.signal.aborted) return;
       updateStep('synthesis', StepStatus.COMPLETED);
@@ -220,23 +351,34 @@ function App() {
         curriculumAnalysis: currentCurriculum,
         professorAnalysis: currentProfessors,
         interviewTrends: currentTrends,
-        strategy: strategyData
+        strategy: { ...strategyData, ...questionsData }
       });
 
     } catch (error: any) {
-      if (error.message === "ABORTED") {
-        console.log("Analysis aborted by user");
-        // Steps are already updated in handleStop
-      } else {
-        console.error("Analysis failed", error);
-        updateStep('research', StepStatus.ERROR);
-        updateStep('synthesis', StepStatus.ERROR);
+      if (error.name === 'AbortError') {
+        console.log('Analysis aborted');
+        return;
       }
+      console.error("Analysis failed", error);
+
+      // Determine which step failed
+      const currentStepIndex = steps.findIndex(s => s.status === StepStatus.LOADING);
+      if (currentStepIndex !== -1) {
+        updateStep(steps[currentStepIndex].id, StepStatus.ERROR);
+        // Also mark sub-steps as error if they were loading
+        const stepId = steps[currentStepIndex].id;
+        const step = steps.find(s => s.id === stepId);
+        step?.subSteps?.forEach(sub => {
+          if (sub.status === StepStatus.LOADING) {
+            updateSubStep(stepId, sub.label, StepStatus.ERROR);
+          }
+        });
+      }
+
+      alert("분석 중 오류가 발생했습니다. 다시 시도해주세요.");
     } finally {
-      if (abortControllerRef.current === controller) {
-        setIsAnalyzing(false);
-        abortControllerRef.current = null;
-      }
+      setIsAnalyzing(false);
+      abortControllerRef.current = null;
     }
   };
 

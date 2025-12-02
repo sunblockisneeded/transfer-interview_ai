@@ -1,173 +1,149 @@
 import type { VercelResponse } from '@vercel/node';
-import { ai, MODEL_RESEARCH, timeContext, TIMEOUTS } from '../_config.js';
-import { callWithTimeout, extractSources, parseJsonSafe } from '../_utils.js';
+import { ai, MODEL_RESEARCH, timeContext, TIMEOUTS, PROFESSOR_ANALYSIS_DELAY } from '../_config.js';
+import { callWithTimeout, extractSources, parseJsonSafe, sanitizeInput, generateContentWithSmartRetry } from '../_utils.js';
 import { factCheckAndRefine } from '../_agents.js';
 
 export async function handleProfessors(payload: any, res: VercelResponse) {
-    const { uni, dept } = payload;
+    const { uni, dept, config } = payload;
+    const safeUni = sanitizeInput(uni);
+    const safeDept = sanitizeInput(dept);
+
+    const model = config?.model || MODEL_RESEARCH;
+    const listTimeout = config?.timeout || TIMEOUTS.PROFESSOR_LIST;
+    const detailTimeout = config?.timeout || TIMEOUTS.PROFESSOR_DETAIL;
+    const macroTimeout = config?.timeout || TIMEOUTS.MACRO_ANALYSIS;
 
     // 1. First, find the list of professors
     const listPrompt = `
-    Find the list of professors for ${uni} ${dept}. at least 5 professors.
+    Find the list of professors for ${safeUni} ${safeDept}. at least 5 professors.
     Output MUST be in Korean.
     
     [Temporal Context]
     ${timeContext}
-    
-    Task:
-    - Search for the official faculty page or reliable sources for ${uni} ${dept}.
-    - Extract the names of the professors.
-    - Return a JSON list of names.
-    
-    Output JSON Structure:
+
+    Return ONLY a JSON object with this structure:
     {
-      "names": ["Prof A", "Prof B", ...]
+      "names": ["Name1", "Name2", "Name3", ...]
     }
-    `;
+  `;
 
     let professorNames: string[] = [];
     try {
-        const listResponse = await callWithTimeout(
-            ai.models.generateContent({
-                model: MODEL_RESEARCH,
-                contents: listPrompt,
-                config: {
-                    tools: [{ googleSearch: {} }]
-                },
-            }),
-            TIMEOUTS.PROFESSOR_LIST,
-            "Professor List Search Timeout"
+        const listResponse = await generateContentWithSmartRetry(
+            ai.models,
+            model,
+            listPrompt,
+            { tools: [{ googleSearch: {} }] },
+            config?.timeout ? config.timeout : undefined,
+            "Professor List Analysis" // Task Name
         );
 
         const listJson = parseJsonSafe(listResponse.text || "{}");
         professorNames = listJson.names || [];
     } catch (e) {
         console.error("Failed to get professor list", e);
+        // Fallback: try to proceed or return empty
     }
 
-    // Limit to top 5 to avoid timeouts
-    const targetProfessors = professorNames.slice(0, 5);
+    if (professorNames.length === 0) {
+        return res.status(200).json({
+            professors: [],
+            majorKnowledgeAnalysis: "교수진 정보를 찾을 수 없습니다.",
+            sources: []
+        });
+    }
 
-    // 2. Search details for each professor (Parallel execution)
-    const detailPromises = targetProfessors.map(async (name) => {
-        const strictPrompt = `
-        Research specific details for Professor "${name}" at "${uni} ${dept}".
-        **CRITICAL**: Verify this is the person at ${uni} ${dept}, NOT a different person with the same name.
-        If you cannot confirm they are at this university, return NULL.
+    // 2. Analyze each professor (Sequential with Delay)
+    // Limit to 5 to avoid timeouts
+    const targetProfessors = professorNames.slice(0, 5);
+    const professorDetails = [];
+
+    // Use configured delay or default
+    const delayMs = config?.delay || PROFESSOR_ANALYSIS_DELAY || 500;
+
+    for (const name of targetProfessors) {
+        const detail = await attemptSearch(name, safeUni, safeDept, model, detailTimeout, config);
+        professorDetails.push(detail);
+
+        // Add delay between calls (except after the last one)
+        if (targetProfessors.indexOf(name) < targetProfessors.length - 1) {
+            await new Promise(resolve => setTimeout(resolve, delayMs));
+        }
+    }
+
+    const validProfessors = professorDetails.filter(p => p !== null);
+
+    // 3. Synthesize Major Knowledge Analysis
+    // ... (rest of the function)
+    const knowledgePrompt = `
+        Based on the following professor research areas, summarize the core academic focus of ${safeUni} ${safeDept}.
+        Output MUST be in Korean.
+        
+        Professors:
+        ${validProfessors.map(p => `- ${p.name}: ${p.researchTendency} (${p.majorPapers?.join(', ')})`).join('\n')}
+        
+        Structure:
+        # ${safeDept} 주요 연구 분야
+        - Identify 3-4 main research clusters.
+        - Explain the academic strengths of this department.
+    `;
+
+    let majorKnowledgeAnalysis = "";
+    try {
+        const knowledgeResponse = await generateContentWithSmartRetry(
+            ai.models,
+            model,
+            knowledgePrompt,
+            {},
+            config?.timeout ? config.timeout : undefined,
+            "Major Knowledge Analysis" // Task Name
+        );
+        majorKnowledgeAnalysis = knowledgeResponse.text || "";
+    } catch (e) {
+        majorKnowledgeAnalysis = "주요 연구 분야 분석에 실패했습니다.";
+    }
+
+    return res.status(200).json({
+        professors: validProfessors,
+        majorKnowledgeAnalysis,
+        sources: [] // Sources are hard to aggregate perfectly here, but could be added
+    });
+}
+
+async function attemptSearch(name: string, uni: string, dept: string, model: string, timeout: number, config: any) {
+    const prompt = `
+        Analyze professor "${name}" from ${uni} ${dept}.
+        Output MUST be in Korean.
         
         [Temporal Context]
         ${timeContext}
 
-        Task:
-        - Find their Lab/Research Area.
-        - Find their Email/Contact.
-        - Find a list of their recent major papers (2020-2025). If exact titles are not found, find their main research keywords.
-        - Analyze their research tendency based on the papers/keywords.
-        
-        Output Requirements:
-        - "researchTendency": **MUST BE IN KOREAN**. Summarize in exactly 3 lines. End with "~하는 경향이 있음".
-        - "majorPapers": List actual paper titles if found. If not, list 3-5 main research topics/keywords.
-        
-        Output JSON Structure:
+        Return ONLY a JSON object:
         {
           "name": "${name}",
-          "lab": "Lab Name",
-          "contact": "Email",
-          "majorPapers": ["Paper 1", "Paper 2", ...],
-          "researchTendency": "3-line Korean summary",
-          "details": "Other info"
+          "lab": "Lab Name (or 'Unknown')",
+          "contact": "Email or Office (or 'Unknown')",
+          "researchTendency": "One sentence summary of research focus (ends with ~하는 경향이 있음)",
+          "majorPapers": ["Paper 1", "Paper 2", "Paper 3"],
+          "details": "Brief description of their academic background or specific interests"
         }
-        `;
-
-        const attemptSearch = async (prompt: string, timeout: number) => {
-            try {
-                const response = await callWithTimeout(
-                    ai.models.generateContent({
-                        model: MODEL_RESEARCH,
-                        contents: prompt,
-                        config: {
-                            tools: [{ googleSearch: {} }]
-                        },
-                    }),
-                    timeout,
-                    `Search Timeout for ${name}`
-                );
-                let text = response.text || "{}";
-
-                const result = parseJsonSafe(text);
-                if (!result || (!result.lab && !result.researchTendency)) return null;
-                return result;
-            } catch (e) {
-                return null;
-            }
-        };
-
-        let result = await attemptSearch(strictPrompt, TIMEOUTS.PROFESSOR_DETAIL);
-
-        if (!result || !result.lab) {
-            const relaxedPrompt = `
-                Research details for Professor "${name}" who is likely at "${uni} ${dept}".
-                Just find the best available information.
-                
-                Output Requirements:
-                - "researchTendency": **MUST BE IN KOREAN**. Summarize in exactly 3 lines. End with "~하는 경향이 있음".
-                
-                Output JSON Structure:
-                {
-                  "name": "${name}",
-                  "lab": "Lab Name",
-                  "contact": "Email",
-                  "majorPapers": ["Paper 1", "Paper 2", ...],
-                  "researchTendency": "3-line Korean summary",
-                  "details": "Unverified - please check manually"
-                }
-             `;
-            result = await attemptSearch(relaxedPrompt, TIMEOUTS.PROFESSOR_DETAIL);
-        }
-
-        return result;
-    });
-
-    const results = await Promise.all(detailPromises);
-    const validResults = results.filter(r => r !== null);
-
-    // 3. Major Knowledge Analysis (Macro)
-    const macroPrompt = `
-    Analyze the General Academic Discipline of ${dept}.
-    Output MUST be in Korean.
-    
-    [Temporal Context]
-    ${timeContext}
-    
-    Task:
-    - Header MUST be: "# 4. ${dept} 전공 핵심 지식 분석"
-    - IMPORTANT: This section must be about the **General Academic Discipline** of ${dept}, NOT specific to ${uni}.
-    - What are the universal "Core Ideas" or "Key Concepts" of this field of study?
-    - How can a student quickly grasp these core ideas?
     `;
 
-    const macroResponse = await callWithTimeout(
-        ai.models.generateContent({
-            model: MODEL_RESEARCH,
-            contents: macroPrompt,
-            config: { tools: [{ googleSearch: {} }] },
-        }),
-        TIMEOUTS.MACRO_ANALYSIS,
-        "Macro Analysis Timeout"
-    );
+    try {
+        const response = await generateContentWithSmartRetry(
+            ai.models,
+            model,
+            prompt,
+            { tools: [{ googleSearch: {} }] },
+            config?.timeout ? config.timeout : undefined,
+            `Professor Detail: ${name}` // Task Name
+        );
+        let text = response.text || "{}";
 
-    const macroText = macroResponse.text || "";
-    const sources = extractSources(macroResponse).sources;
-
-    const verifiedKnowledge = await factCheckAndRefine(
-        macroText,
-        `General ${dept} Knowledge`,
-        sources
-    );
-
-    return res.status(200).json({
-        professors: validResults,
-        majorKnowledgeAnalysis: verifiedKnowledge,
-        sources
-    });
+        const result = parseJsonSafe(text);
+        if (!result || (!result.lab && !result.researchTendency)) return null;
+        return result;
+    } catch (e) {
+        return null;
+    }
 }

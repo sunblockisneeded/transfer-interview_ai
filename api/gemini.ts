@@ -6,6 +6,7 @@ import { handleCurriculum } from './_handlers/curriculum.js';
 import { handleProfessors } from './_handlers/professors.js';
 import { handleTrends } from './_handlers/trends.js';
 import { handleSynthesis } from './_handlers/synthesis.js';
+import { handleAudit } from './_handlers/audit.js';
 
 // --- Main Handler ---
 
@@ -43,16 +44,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // Rate Limiting
     const clientIp = (req.headers['x-forwarded-for'] as string) || req.socket.remoteAddress || 'unknown';
-    // Note: checkRateLimit needs to be imported from _utils or _config where it was moved.
-    // Wait, I moved checkRateLimit to _utils.ts but in the previous step I put it in _utils.ts?
-    // Let me check my previous write_to_file for _utils.ts.
-    // Yes, checkRateLimit is in _utils.ts.
-    // But wait, rateLimitMap is stateful. If I import it from _utils, it should be fine as long as the module is cached.
-    // However, in Vercel serverless, state is not guaranteed to persist.
-    // But for this refactor, I am just moving code.
-
-    // Actually, I need to import checkRateLimit from './_utils' not './_config'.
-    // Let me correct the import above.
 
     if (!apiKey) {
         console.error("API_KEY is missing in server environment");
@@ -71,6 +62,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 return await handleProfessors(payload, res);
             case 'trends':
                 return await handleTrends(payload, res);
+            case 'audit':
+                return await handleAudit(payload, res);
             case 'synthesis':
                 return await handleSynthesis(payload, res);
             default:

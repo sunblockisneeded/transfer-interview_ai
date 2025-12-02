@@ -1,3 +1,5 @@
+import { STREAM_TIMEOUT, MODEL_LOW, API_CALL_DELAY, STREAM_INACTIVITY_TIMEOUT } from './_config.js';
+
 // --- Rate Limiting (Simple In-Memory) ---
 // Note: In a serverless environment, this state is not shared across instances.
 // For production, use Vercel KV or Upstash.
@@ -40,6 +42,138 @@ export const callWithTimeout = async <T>(promise: Promise<T>, timeoutMs: number,
     } catch (error) {
         clearTimeout(timeoutHandle!);
         throw error;
+    }
+};
+
+// Global promise chain to stagger API calls
+let requestQueue = Promise.resolve();
+
+export const generateContentWithSmartRetry = async (
+    modelInstance: any, // ai.models
+    modelName: string,
+    prompt: string,
+    config: any = {},
+    streamTimeout: number = STREAM_TIMEOUT,
+    taskName: string = "AI Task" // New parameter for logging
+): Promise<any> => {
+
+    const startTime = Date.now();
+    console.log(`[${taskName}] 🕒 Queued. (Model: ${modelName})`);
+
+    const attempt = async (currentModel: string, isRetry: boolean): Promise<any> => {
+
+        // Stagger Logic
+        if (API_CALL_DELAY > 0) {
+            const myDelay = new Promise<void>(resolve => setTimeout(resolve, API_CALL_DELAY));
+            const previousQueue = requestQueue;
+            requestQueue = requestQueue.then(() => myDelay);
+            await previousQueue;
+        }
+
+        console.log(`[${taskName}] 🚀 Starting... (Model: ${currentModel}, Retry: ${isRetry})`);
+
+        try {
+            // 1. Start Stream (with Initial Connection Timeout)
+            const streamingResp = await Promise.race([
+                modelInstance.generateContentStream({
+                    model: currentModel,
+                    contents: prompt,
+                    config: config
+                }),
+                new Promise((_, reject) => setTimeout(() => reject(new Error("STREAM_TIMEOUT")), streamTimeout))
+            ]);
+
+            // 2. Process Stream with Inactivity Timeout
+            let fullText = "";
+            let collectedChunks: any[] = [];
+
+            const streamIterable = (streamingResp as any).stream || streamingResp;
+            const iterator = streamIterable[Symbol.asyncIterator]();
+
+            let nextPromise = iterator.next();
+
+            while (true) {
+                const timeoutPromise = new Promise<any>((_, reject) => {
+                    const id = setTimeout(() => reject(new Error("STREAM_TIMEOUT")), STREAM_INACTIVITY_TIMEOUT);
+                    // Attach timer id to promise to clear it later if needed (though we just race)
+                    (Promise as any)._timer = id;
+                });
+
+                let result;
+                try {
+                    result = await Promise.race([nextPromise, timeoutPromise]);
+                } catch (e) {
+                    // If timeout occurred
+                    throw e;
+                }
+
+                if (result.done) break;
+
+                const chunk = result.value;
+
+                // Process chunk
+                let chunkText = "";
+                if (typeof chunk.text === 'function') {
+                    chunkText = chunk.text();
+                } else if (typeof chunk.text === 'string') {
+                    chunkText = chunk.text;
+                } else if (chunk.candidates?.[0]?.content?.parts?.[0]?.text) {
+                    chunkText = chunk.candidates[0].content.parts[0].text;
+                }
+
+                fullText += chunkText;
+                collectedChunks.push(chunk);
+
+                // Prepare next iteration
+                nextPromise = iterator.next();
+            }
+
+            const duration = ((Date.now() - startTime) / 1000).toFixed(1);
+            console.log(`[${taskName}] ✅ Success! (${duration}s)`);
+
+            return {
+                text: fullText,
+                candidates: [{
+                    content: { parts: [{ text: fullText }] },
+                    groundingMetadata: collectedChunks.length > 0 ? collectedChunks[collectedChunks.length - 1].groundingMetadata : undefined
+                }]
+            };
+
+        } catch (error: any) {
+            console.error(`[${taskName}] ❌ Failed attempt with ${currentModel}: ${error.message}`);
+            throw error;
+        }
+    };
+
+    // Retry Logic
+    try {
+        return await attempt(modelName, false);
+    } catch (e: any) {
+        if (e.message === "STREAM_TIMEOUT" ||
+            e.message.includes("503") ||
+            e.message.includes("500") ||
+            e.message.includes("fetch failed")) {
+
+            console.log(`[${taskName}] ⚠️ Recoverable error. Retrying...`);
+
+            await new Promise(resolve => setTimeout(resolve, 1000));
+
+            try {
+                return await attempt(modelName, true);
+            } catch (e2: any) {
+                console.log(`[${taskName}] ⚠️ Retry failed. Switching to Fallback Model (${MODEL_LOW})...`);
+                try {
+                    const fallback = MODEL_LOW;
+                    if (modelName === fallback) throw e2;
+
+                    return await attempt(fallback, true);
+                } catch (e3) {
+                    console.error(`[${taskName}] ⛔ All attempts failed.`);
+                    throw e3;
+                }
+            }
+        }
+        throw e;
     }
 };
 

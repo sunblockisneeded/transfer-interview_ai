@@ -1,12 +1,15 @@
 import type { VercelResponse } from '@vercel/node';
 import { ai, MODEL_RESEARCH, timeContext, currentYear, TIMEOUTS } from '../_config.js';
-import { callWithTimeout, extractSources, sanitizeInput } from '../_utils.js';
+import { callWithTimeout, extractSources, sanitizeInput, generateContentWithSmartRetry } from '../_utils.js';
 import { factCheckAndRefine, reviewContent } from '../_agents.js';
 
 export async function handleCurriculum(payload: any, res: VercelResponse) {
-    const { uni, dept } = payload;
+    const { uni, dept, config } = payload;
     const safeUni = sanitizeInput(uni);
     const safeDept = sanitizeInput(dept);
+
+    const model = config?.model || MODEL_RESEARCH;
+    const timeout = config?.timeout || TIMEOUTS.CURRICULUM;
 
     const prompt = `
     You are an educational curriculum analyst. You MUST follow these rules:
@@ -40,14 +43,13 @@ export async function handleCurriculum(payload: any, res: VercelResponse) {
   `;
 
     // time limit is 180s
-    const response = await callWithTimeout(
-        ai.models.generateContent({
-            model: MODEL_RESEARCH,
-            contents: prompt,
-            config: { tools: [{ googleSearch: {} }] },
-        }),
-        TIMEOUTS.CURRICULUM,
-        "Curriculum Research Timeout"
+    const response = await generateContentWithSmartRetry(
+        ai.models,
+        model,
+        prompt,
+        { tools: [{ googleSearch: {} }] },
+        config?.timeout ? config.timeout : undefined,
+        "Curriculum Analysis" // Task Name
     );
 
     const extracted = extractSources(response);

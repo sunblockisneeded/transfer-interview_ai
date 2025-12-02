@@ -68,6 +68,10 @@ export interface AnalysisStep {
   id: string;
   label: string;
   status: StepStatus;
+  subSteps?: {
+    label: string;
+    status: StepStatus;
+  }[];
 }
 
 export interface ValidationResult {

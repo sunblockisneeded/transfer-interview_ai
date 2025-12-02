@@ -38,10 +38,10 @@ export const validateUniversityAndDepartment = async (uni: string, dept: string)
 
 // --- Research Functions ---
 
-export const researchCurriculum = async (uni: string, dept: string): Promise<ResearchResult> => {
+export const researchCurriculum = async (uni: string, dept: string, config?: { timeout: number, model: string }): Promise<ResearchResult> => {
   logStep('Curriculum', `Starting analysis for ${uni} ${dept}`);
   try {
-    const result = await apiCall('curriculum', { uni, dept });
+    const result = await apiCall('curriculum', { uni, dept, config });
     logStep('Curriculum', `Completed`);
     return result;
   } catch (error) {
@@ -50,10 +50,10 @@ export const researchCurriculum = async (uni: string, dept: string): Promise<Res
   }
 };
 
-export const researchProfessorsAndKnowledge = async (uni: string, dept: string): Promise<ProfessorAnalysisResult> => {
+export const researchProfessorsAndKnowledge = async (uni: string, dept: string, config?: { timeout: number, model: string }): Promise<ProfessorAnalysisResult> => {
   logStep('Professors', `Starting analysis for ${uni} ${dept}`);
   try {
-    const result = await apiCall('professors', { uni, dept });
+    const result = await apiCall('professors', { uni, dept, config });
     logStep('Professors', `Completed`);
     return result;
   } catch (error) {
@@ -62,10 +62,10 @@ export const researchProfessorsAndKnowledge = async (uni: string, dept: string):
   }
 };
 
-export const researchInterviewTrends = async (uni: string, dept: string): Promise<ResearchResult> => {
+export const researchInterviewTrends = async (uni: string, dept: string, config?: { timeout: number, model: string }): Promise<ResearchResult> => {
   logStep('Trends', `Starting analysis for ${uni} ${dept}`);
   try {
-    const result = await apiCall('trends', { uni, dept });
+    const result = await apiCall('trends', { uni, dept, config });
     logStep('Trends', `Completed`);
     return result;
   } catch (error) {
@@ -74,28 +74,83 @@ export const researchInterviewTrends = async (uni: string, dept: string): Promis
   }
 };
 
+export const synthesizeStrategyOnly = async (
+  uni: string,
+  dept: string,
+  curriculum: string,
+  professors: any[],
+  trends: string,
+  config?: { timeout: number, model: string }
+): Promise<any> => {
+  logStep('Synthesis', `Starting strategy generation`);
+  try {
+    const result = await apiCall('synthesis', { uni, dept, curriculum, professors, trends, config, subTask: 'strategy' });
+    logStep('Synthesis', `Strategy Completed`);
+    return result;
+  } catch (error) {
+    logStep('Synthesis', `Strategy Error: ${error}`);
+    return { coreStrategy: "전략 생성 실패", coreConcepts: [] };
+  }
+};
+
+export const synthesizeQuestionsOnly = async (
+  uni: string,
+  dept: string,
+  curriculum: string,
+  professors: any[],
+  trends: string,
+  config?: { timeout: number, model: string }
+): Promise<any> => {
+  logStep('Synthesis', `Starting question generation`);
+  try {
+    const result = await apiCall('synthesis', { uni, dept, curriculum, professors, trends, config, subTask: 'questions' });
+    logStep('Synthesis', `Questions Completed`);
+    return result;
+  } catch (error) {
+    logStep('Synthesis', `Questions Error: ${error}`);
+    return { questions: { high: [], medium: [], low: [] } };
+  }
+};
+
+// Legacy support or full call if needed
 export const synthesizeStrategy = async (
   uni: string,
   dept: string,
   curriculum: string,
   professors: any[],
   trends: string,
-  abortSignal?: AbortSignal
+  abortSignal?: AbortSignal,
+  config?: { timeout: number, model: string }
 ): Promise<StrategicPlan> => {
-  logStep('Synthesis', `Starting strategy synthesis`);
+  // This function is kept for backward compatibility but might not be used if App.tsx switches to split calls.
+  // For now, let's implement it using the split calls to ensure consistency if called.
 
+  const [strategy, questions] = await Promise.all([
+    synthesizeStrategyOnly(uni, dept, curriculum, professors, trends, config),
+    synthesizeQuestionsOnly(uni, dept, curriculum, professors, trends, config)
+  ]);
+
+  return {
+    ...strategy,
+    ...questions
+  };
+};
+
+export const auditResearch = async (
+  uni: string,
+  dept: string,
+  curriculum: ResearchResult,
+  professors: ProfessorAnalysisResult,
+  trends: ResearchResult,
+  config?: { timeout: number, model: string }
+): Promise<any> => {
+  logStep('Audit', `Starting independent audit for ${uni} ${dept}`);
   try {
-    // Note: AbortSignal is not easily passed through simple fetch wrappers without more logic, 
-    // but for now we'll just call the API.
-    const result = await apiCall('synthesis', { uni, dept, curriculum, professors, trends });
-    logStep('Synthesis', `Completed`);
+    const result = await apiCall('audit', { uni, dept, curriculum, professors, trends, config });
+    logStep('Audit', `Completed with score: ${result.score}`);
     return result;
   } catch (error) {
-    logStep('Synthesis', `Error: ${error}`);
-    return {
-      coreStrategy: "전략 생성에 실패했습니다. (서버 오류)",
-      coreConcepts: [],
-      questions: { high: [], medium: [], low: [] }
-    };
+    logStep('Audit', `Error: ${error}`);
+    return { score: 0, status: "WARNING", issues: ["Audit failed"], feedback: "Proceed with caution." };
   }
 };

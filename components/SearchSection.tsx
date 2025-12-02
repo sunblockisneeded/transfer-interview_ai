@@ -1,5 +1,5 @@
-import React from 'react';
-import { AlertTriangle, GraduationCap, LayoutGrid } from 'lucide-react';
+import React, { useState } from 'react';
+import { AlertTriangle, GraduationCap, LayoutGrid, Settings, HelpCircle, Clock, Cpu } from 'lucide-react';
 import { ValidationResult } from '../types';
 
 interface SearchSectionProps {
@@ -7,7 +7,7 @@ interface SearchSectionProps {
     setUniversity: (val: string) => void;
     department: string;
     setDepartment: (val: string) => void;
-    onAnalyze: (e: React.FormEvent) => void;
+    onAnalyze: (e: React.FormEvent, config?: { timeout: number, model: string }) => void;
     validationError: ValidationResult | null;
     setValidationError: (val: ValidationResult | null) => void;
     rateLimitError: string | null;
@@ -29,6 +29,14 @@ const SearchSection: React.FC<SearchSectionProps> = ({
     onConfirmCorrection,
     onProceedAnyway,
 }) => {
+    const [timeout, setTimeout] = useState<number>(180000); // Default 3 min
+    const [model, setModel] = useState<string>('gemini-2.5-flash');
+
+    const handleSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        onAnalyze(e, { timeout, model });
+    };
+
     return (
         <div className="flex flex-col items-center justify-center min-h-[70vh] animate-in fade-in slide-in-from-bottom-4 duration-700">
 
@@ -108,7 +116,61 @@ const SearchSection: React.FC<SearchSectionProps> = ({
             {/* Main Search Form - Updated Horizontal Layout */}
             {!validationError && (
                 <div className="w-full max-w-2xl space-y-6">
-                    <form onSubmit={onAnalyze} className="flex flex-col md:flex-row gap-4">
+                    {/* Configuration Options */}
+                    <div className="flex flex-col sm:flex-row gap-4 mb-4">
+                        {/* Timeout Setting */}
+                        <div className="flex-1 bg-white p-3 rounded-xl shadow-sm border border-slate-200 flex items-center gap-3 relative group">
+                            <Clock className="w-5 h-5 text-slate-400" />
+                            <div className="flex-1">
+                                <label className="text-xs text-slate-500 block mb-1 flex items-center gap-1">
+                                    Timeout
+                                    <div className="relative group/tooltip inline-block">
+                                        <HelpCircle className="w-3 h-3 text-slate-400 cursor-help" />
+                                        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 p-2 bg-slate-800 text-white text-xs rounded shadow-lg opacity-0 group-hover/tooltip:opacity-100 transition-opacity pointer-events-none z-10">
+                                            각 분석의 timeout 시간을 나타냅니다. 전체 분석 시간은 더 길 수 있습니다.
+                                        </div>
+                                    </div>
+                                </label>
+                                <select
+                                    value={timeout}
+                                    onChange={(e) => setTimeout(Number(e.target.value))}
+                                    className="w-full bg-transparent outline-none text-sm font-medium text-slate-700"
+                                >
+                                    <option value={60000}>1분</option>
+                                    <option value={120000}>2분</option>
+                                    <option value={180000}>3분 (권장)</option>
+                                    <option value={600000}>없음 (10분)</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        {/* Model Setting */}
+                        <div className="flex-1 bg-white p-3 rounded-xl shadow-sm border border-slate-200 flex items-center gap-3 relative">
+                            <Cpu className="w-5 h-5 text-slate-400" />
+                            <div className="flex-1">
+                                <label className="text-xs text-slate-500 block mb-1 flex items-center gap-1">
+                                    AI Model
+                                    <div className="relative group/tooltip inline-block">
+                                        <HelpCircle className="w-3 h-3 text-slate-400 cursor-help" />
+                                        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-64 p-2 bg-slate-800 text-white text-xs rounded shadow-lg opacity-0 group-hover/tooltip:opacity-100 transition-opacity pointer-events-none z-10">
+                                            gemini 3.0/2.5 pro 모델은 응답 시간이 길어 timeout 시간을 3분이나 없음 옵션을 추천합니다.
+                                        </div>
+                                    </div>
+                                </label>
+                                <select
+                                    value={model}
+                                    onChange={(e) => setModel(e.target.value)}
+                                    className="w-full bg-transparent outline-none text-sm font-medium text-slate-700"
+                                >
+                                    <option value="gemini-2.5-flash">Gemini 2.5 Flash (빠름)</option>
+                                    <option value="gemini-2.5-pro">Gemini 2.5 Pro (균형)</option>
+                                    <option value="gemini-3-pro-preview">Gemini 3.0 Pro (고성능)</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <form onSubmit={handleSubmit} className="flex flex-col md:flex-row gap-4">
                         <div className="flex-1 bg-white p-1 rounded-xl shadow-sm border border-slate-200 focus-within:ring-2 focus-within:ring-indigo-100 focus-within:border-indigo-300 transition-all flex items-center h-14">
                             <div className="pl-4 text-slate-400">
                                 <GraduationCap className="w-5 h-5" />
@@ -139,7 +201,7 @@ const SearchSection: React.FC<SearchSectionProps> = ({
                     </form>
 
                     <button
-                        onClick={onAnalyze}
+                        onClick={handleSubmit}
                         disabled={!university || !department}
                         className="w-full py-4 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:hover:bg-indigo-600 text-white font-bold text-lg rounded-xl shadow-lg shadow-indigo-200 transition-all flex items-center justify-center gap-2 font-serif-kr tracking-wide"
                     >
