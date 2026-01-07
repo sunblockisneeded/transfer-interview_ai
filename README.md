@@ -26,16 +26,6 @@
 
 ## 사용 방법
 
-### 온라인 (가장 쉬움)
-
-https://transfer-interview-ai.vercel.app/ 접속 → 대학명, 학과명 입력 → 분석 시작
-
-> 무료 서버라 분석에 1~2분 소요됩니다. 조금만 기다려주세요.
-
-### 로컬 설치 (더 빠름)
-
-직접 설치하면 제한 없이 사용 가능합니다.
-
 **준비물**
 - [Node.js](https://nodejs.org/) v18 이상
 - [Google Gemini API Key](https://aistudio.google.com/) (무료)
