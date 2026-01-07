@@ -1,128 +1,85 @@
-# AI 편입 면접 에이전트 (AI Transfer Interview Agent)
+# AI 편입 면접 코치
 
-대학 편입 면접을 준비하는 학생들을 위한 AI 기반 보조 도구입니다. 지원하려는 대학의 커리큘럼, 교수진, 면접 트렌드를 분석하여 개인화된 합격 전략을 제시합니다.
+> 지원 대학에 맞춤화된 면접 전략과 예상 질문을 AI가 생성해드립니다.
 
-## 주요 기능
+## 이런 분께 추천합니다
 
-- **대학/학과 검증**: 입력한 대학과 학과가 실제로 존재하는지 확인
-- **커리큘럼 분석**: 1~2학년 핵심 전공 과목과 교육 트렌드 분석
-- **교수진 분석**: 주요 교수진 검색 및 연구 성향 요약
-- **면접 트렌드 분석**: 합격/불합격 사례, 학교별 특이사항 분석
-- **면접 전략 수립**: 핵심 전략, 필수 키워드, 예상 질문(난이도별) 생성
+- 편입 면접이 처음이라 뭘 준비해야 할지 모르겠는 분
+- 지원 학과의 커리큘럼을 일일이 찾아보기 힘든 분
+- "어떤 질문이 나올까?" 막막한 분
+- 합격자들은 어떻게 준비했는지 궁금한 분
 
-## 시작하기
+## 어떤 정보를 받을 수 있나요?
 
-### 온라인 접속
-https://transfer-interview-ai.vercel.app/
-- Vercel로 배포됨
-- API 호출 시간 60초 제한으로 일부 기능 제한
-- 로컬 설치 권장
+**1. 학과 맞춤 분석**
+- 1~2학년 핵심 전공 과목과 알아야 할 개념
+- 실제 재직 중인 교수진 정보
 
-### 로컬 설치
+**2. 면접 트렌드**
+- 최근 합격/불합격 사례 분석
+- 해당 학교만의 면접 특징
 
-**필수 조건**
-- Node.js v18+
-- Google Gemini API Key ([Google AI Studio](https://aistudio.google.com/)에서 발급)
+**3. 맞춤 전략**
+- 반드시 알아야 할 핵심 키워드 5개
+- 난이도별 예상 질문 (기초/심화/압박)
+- 각 질문에 대한 모범 답변 방향
+
+## 사용 방법
+
+### 온라인 (가장 쉬움)
+
+https://transfer-interview-ai.vercel.app/ 접속 → 대학명, 학과명 입력 → 분석 시작
+
+> 무료 서버라 분석에 1~2분 소요됩니다. 조금만 기다려주세요.
+
+### 로컬 설치 (더 빠름)
+
+직접 설치하면 제한 없이 사용 가능합니다.
+
+**준비물**
+- [Node.js](https://nodejs.org/) v18 이상
+- [Google Gemini API Key](https://aistudio.google.com/) (무료)
 
 **설치**
 ```bash
-git clone <repository-url>
-cd <project-directory>
+git clone https://github.com/your-username/transfer-interview-ai.git
+cd transfer-interview-ai
 npm install
 ```
 
-**환경 변수 설정**
+**API 키 설정**
 
-`.env.local` 파일 생성:
-```env
-API_KEY=your_gemini_api_key_here
-API_ENABLED=true
+프로젝트 폴더에 `.env.local` 파일 생성:
+```
+API_KEY=여기에_발급받은_키_입력
 ```
 
 **실행**
 ```bash
-# 터미널 1: 백엔드 서버
+# 터미널 2개 필요
+
+# 1번 터미널: 백엔드
 npx tsx server.ts
 
-# 터미널 2: 프론트엔드
+# 2번 터미널: 프론트엔드
 npm run dev
 ```
-- 백엔드: http://localhost:3001
-- 프론트엔드: http://localhost:3000
+
+http://localhost:3000 에서 사용
+
+## 주의사항
+
+- AI가 생성한 정보는 참고용입니다. 실제 면접 전 학과 홈페이지에서 최신 정보를 확인하세요.
+- 교수진, 커리큘럼은 변경될 수 있습니다.
+- 예상 질문은 기출을 보장하지 않습니다.
+
+## 만든 이유
+
+편입 면접 준비할 때 정보가 너무 분산되어 있어서 힘들었습니다.
+학과 홈페이지, 에브리타임, 오르비... 여기저기 찾아다니면서 정리하는 게 시간 낭비 같았어요.
+
+"AI가 대신 정리해주면 좋겠다"는 생각으로 만들었습니다.
 
 ---
 
-## 테스트
-
-### 단위 테스트 (API 불필요)
-```bash
-# 모든 단위 테스트 (36개)
-npm run test:unit
-
-# 빠른 테스트 (단위 + 검증기)
-npm run test:quick
-```
-
-### 통합 테스트 (API 필요)
-```bash
-# 특정 대학/학과 리포트 생성
-API_KEY=xxx npx tsx test/integration/cnu-report.ts   # 충남대 정치외교학과
-API_KEY=xxx npx tsx test/integration/cbnu-report.ts  # 충북대 정치외교학과
-```
-
-### 테스트 결과 (2026-01-08)
-| 대학 | 학과 | Score | 시간 |
-|------|------|-------|------|
-| 충남대 | 정치외교학과 | 100/100 | 47초 |
-| 충북대 | 정치외교학과 | 100/100 | 44초 |
-| 건국대 | 경영학과 | 100/100 | 41초 |
-
----
-
-## 프로젝트 구조
-
-```
-api/
-├── _handlers/          # API 핸들러
-│   ├── validate.ts     # 대학/학과 검증
-│   ├── curriculum.ts   # 커리큘럼 분석
-│   ├── professors.ts   # 교수진 분석
-│   ├── trends.ts       # 면접 트렌드
-│   └── synthesis.ts    # 전략/질문 생성
-├── _agents.ts          # AI 에이전트 로직
-├── _config.ts          # 설정
-└── _utils.ts           # 유틸리티 함수
-
-components/             # React UI 컴포넌트
-services/               # 프론트엔드 API 서비스
-test/
-├── unit/               # 단위 테스트
-├── validators/         # 품질 검증기
-├── integration/        # 통합 테스트
-└── experiments/        # 프롬프트 실험
-
-server.ts               # Express 서버
-vitest.config.ts        # Vitest 설정
-```
-
----
-
-## 기술 스택
-
-- **Frontend**: React, Vite, Tailwind CSS
-- **Backend**: Node.js, Vercel Serverless Functions
-- **AI**: Google Gemini Models (gemini-3-flash-preview)
-- **Testing**: Vitest
-
-## 문서
-
-- [PIPELINE_ANALYSIS.md](./PIPELINE_ANALYSIS.md) - 파이프라인 구조 및 테스트 결과
-- [PROMPT_STRATEGY.md](./PROMPT_STRATEGY.md) - 프롬프트 전략 및 개선 내역
-
-## Inspiration
-
-This project was inspired by **Andrew Ng's Agentic Reviewer** (http://paperreview.ai)
-
-## 라이선스
-
-이 프로젝트는 교육 목적으로 제작되었습니다.
+*Inspired by [Andrew Ng's Agentic Reviewer](http://paperreview.ai)*
