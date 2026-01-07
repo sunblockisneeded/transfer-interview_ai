@@ -22,3 +22,14 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Claude Code
+.claude/
+
+# Generated reports (test outputs)
+*_Report_*.html
+*_factcheck.json
+result_report*.html
+
+# Photos/assets
+photos/

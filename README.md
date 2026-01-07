@@ -1,151 +1,128 @@
-# 🎓 AI 편입 면접 에이전트 (AI Transfer Interview Agent)
+# AI 편입 면접 에이전트 (AI Transfer Interview Agent)
 
-이 프로젝트는 대학 편입 면접을 준비하는 학생들을 위한 AI 기반 보조 도구입니다. 지원하려는 대학의 커리큘럼, 교수진의 연구 성향, 그리고 최신 면접 트렌드를 분석하여 개인화된 합격 전략을 제시합니다.
+대학 편입 면접을 준비하는 학생들을 위한 AI 기반 보조 도구입니다. 지원하려는 대학의 커리큘럼, 교수진, 면접 트렌드를 분석하여 개인화된 합격 전략을 제시합니다.
 
-## ✨ 주요 기능
+## 주요 기능
 
-- **대학/학과 검증**  : 입력한 대학과 학과가 실제로 존재하는지 확인합니다.
-- **커리큘럼 분석**: 1~2학년 핵심 전공 과목과 교육 트렌드를 분석합니다.
-- **교수진 연구 성향 분석**: 주요 교수진을 검색하고, 해당 교수의 연구 성향을 **한국어로 요약**하여 제공합니다.
-- **면접 트렌드 분석**: 합격 및 불합격 사례, 학교별 특이사항을 분석합니다.
-- **면접 전략 수립**: 위 정보를 종합하여 핵심 면접 전략, 필수 키워드, 예상 질문(난이도별)을 생성합니다.
+- **대학/학과 검증**: 입력한 대학과 학과가 실제로 존재하는지 확인
+- **커리큘럼 분석**: 1~2학년 핵심 전공 과목과 교육 트렌드 분석
+- **교수진 분석**: 주요 교수진 검색 및 연구 성향 요약
+- **면접 트렌드 분석**: 합격/불합격 사례, 학교별 특이사항 분석
+- **면접 전략 수립**: 핵심 전략, 필수 키워드, 예상 질문(난이도별) 생성
 
-## 🚀 시작하기 (Getting Started)
-1. https://transfer-interview-ai.vercel.app/ 접속하는 방법이 있습니다 
-- vercel로 배포되었습니다.
-- 개별 api 호출 시간이 60초로 제한되어있어 일부 기능들이 재대로 작동하지 않습니다. 따라서 로컬 설치를 권장합니다.
+## 시작하기
 
-## 로컬 설치하기 ##
+### 온라인 접속
+https://transfer-interview-ai.vercel.app/
+- Vercel로 배포됨
+- API 호출 시간 60초 제한으로 일부 기능 제한
+- 로컬 설치 권장
 
-### 필수 조건 (Prerequisites)
+### 로컬 설치
 
-- Node.js (v18 이상 권장)
-- Google Gemini API Key (google AI studio에서 발급)
+**필수 조건**
+- Node.js v18+
+- Google Gemini API Key ([Google AI Studio](https://aistudio.google.com/)에서 발급)
 
-### 설치 방법 (Installation)
+**설치**
+```bash
+git clone <repository-url>
+cd <project-directory>
+npm install
+```
 
-1.  저장소 클론 (Clone):
-    ```bash
-    git clone <repository-url>
-    cd <project-directory>
-    ```
+**환경 변수 설정**
 
-2.  의존성 설치 (Install dependencies):
-    ```bash
-    npm install
-    ```
+`.env.local` 파일 생성:
+```env
+API_KEY=your_gemini_api_key_here
+API_ENABLED=true
+```
 
-3.  환경 변수 설정:
-    루트 경로에 `.env.local` 파일을 생성하고 API 키를 입력하세요:
-    ```env
-    API_KEY = asdkfihawelrf....  
-    API_ENABLED=true
-    ```
+**실행**
+```bash
+# 터미널 1: 백엔드 서버
+npx tsx server.ts
 
-### 실행 방법 (Running the Application)
+# 터미널 2: 프론트엔드
+npm run dev
+```
+- 백엔드: http://localhost:3001
+- 프론트엔드: http://localhost:3000
 
-이 애플리케이션은 React 프론트엔드와 Node.js API 서버로 구성되어 있습니다. 두 가지를 모두 실행해야 합니다.
+---
 
+## 테스트
 
-1.  **백엔드 서버 실행**:
-    터미널을 열고 다음 명령어를 입력합니다:
-    ```bash
-    npx tsx server.ts
-    ```
-    서버가 `http://localhost:3001`에서 시작됩니다.
+### 단위 테스트 (API 불필요)
+```bash
+# 모든 단위 테스트 (36개)
+npm run test:unit
 
-2.  **프론트엔드 실행**:
-# 🎓 AI 편입 면접 에이전트 (AI Transfer Interview Agent)
+# 빠른 테스트 (단위 + 검증기)
+npm run test:quick
+```
 
-이 프로젝트는 대학 편입 면접을 준비하는 학생들을 위한 AI 기반 보조 도구입니다. 지원하려는 대학의 커리큘럼, 교수진의 연구 성향, 그리고 최신 면접 트렌드를 분석하여 개인화된 합격 전략을 제시합니다.
+### 통합 테스트 (API 필요)
+```bash
+# 특정 대학/학과 리포트 생성
+API_KEY=xxx npx tsx test/integration/cnu-report.ts   # 충남대 정치외교학과
+API_KEY=xxx npx tsx test/integration/cbnu-report.ts  # 충북대 정치외교학과
+```
 
-## ✨ 주요 기능
+### 테스트 결과 (2026-01-08)
+| 대학 | 학과 | Score | 시간 |
+|------|------|-------|------|
+| 충남대 | 정치외교학과 | 100/100 | 47초 |
+| 충북대 | 정치외교학과 | 100/100 | 44초 |
+| 건국대 | 경영학과 | 100/100 | 41초 |
 
-- **대학/학과 검증** : 입력한 대학과 학과가 실제로 존재하는지 확인합니다.
-- **커리큘럼 분석**: 1~2학년 핵심 전공 과목과 교육 트렌드를 분석합니다.
-- **교수진 연구 성향 분석**: 주요 교수진을 검색하고, 해당 교수의 연구 성향을 **한국어로 요약**하여 제공합니다.
-- **면접 트렌드 분석**: 합격 및 불합격 사례, 학교별 특이사항을 분석합니다.
-- **면접 전략 수립**: 위 정보를 종합하여 핵심 면접 전략, 필수 키워드, 예상 질문(난이도별)을 생성합니다.
+---
 
-## 🚀 시작하기 (Getting Started)
-1. https://transfer-interview-ai.vercel.app/ 접속하는 방법이 있습니다 
-- vercel로 배포되었습니다.
-- 개별 api 호출 시간이 60초로 제한되어있어 일부 기능들이 재대로 작동하지 않습니다. 따라서 로컬 설치를 권장합니다.
-- 간혹 제가 vercel에서 api를 끄도록 설정해두면 접속만 되고 기능들이 아얘 작동하지 않을 수 있습니다. eddie020101@naver.com 으로 메일 보내주시면 켜드리겠습니다.
+## 프로젝트 구조
 
-## 로컬 설치하기 ##
+```
+api/
+├── _handlers/          # API 핸들러
+│   ├── validate.ts     # 대학/학과 검증
+│   ├── curriculum.ts   # 커리큘럼 분석
+│   ├── professors.ts   # 교수진 분석
+│   ├── trends.ts       # 면접 트렌드
+│   └── synthesis.ts    # 전략/질문 생성
+├── _agents.ts          # AI 에이전트 로직
+├── _config.ts          # 설정
+└── _utils.ts           # 유틸리티 함수
 
-### 필수 조건 (Prerequisites)
+components/             # React UI 컴포넌트
+services/               # 프론트엔드 API 서비스
+test/
+├── unit/               # 단위 테스트
+├── validators/         # 품질 검증기
+├── integration/        # 통합 테스트
+└── experiments/        # 프롬프트 실험
 
-- Node.js (v18 이상 권장)
-- Google Gemini API Key (google AI studio에서 발급)
+server.ts               # Express 서버
+vitest.config.ts        # Vitest 설정
+```
 
-### 설치 방법 (Installation)
+---
 
-1.  저장소 클론 (Clone):
-    ```bash
-    git clone <repository-url>
-    cd <project-directory>
-    ```
-
-2.  의존성 설치 (Install dependencies):
-    ```bash
-    npm install
-    ```
-
-3.  환경 변수 설정:
-    루트 경로에 `.env.local` 파일을 생성하고 API 키를 입력하세요:
-    ```env
-    API_KEY = asdkfihawelrf....  
-    API_ENABLED=true
-    ```
-
-### 실행 방법 (Running the Application)
-
-이 애플리케이션은 React 프론트엔드와 Node.js API 서버로 구성되어 있습니다. 두 가지를 모두 실행해야 합니다.
-
-
-1.  **백엔드 서버 실행**:
-    터미널을 열고 다음 명령어를 입력합니다:
-    ```bash
-    npx tsx server.ts
-    ```
-    서버가 `http://localhost:3001`에서 시작됩니다.
-
-2.  **프론트엔드 실행**:
-    **새로운** 터미널을 열고 다음 명령어를 입력합니다:
-    ```bash
-    npm run dev
-    ```
-    프론트엔드는 `http://localhost:3000`에서 접속할 수 있습니다. ctrl + 클릭으로 접속하세요
-
-## 📂 프로젝트 구조 (Project Structure)
-
-- `api/`: 백엔드 API 로직 (모듈화됨).
-    - `_handlers/`: 개별 API 핸들러 (검증, 커리큘럼, 교수진 등).
-    - `_agents.ts`: 팩트 체크 및 포맷팅을 위한 AI 에이전트 로직.
-    - `_config.ts`: 설정 및 상수.
-- `components/`: React UI 컴포넌트.
-- `services/`: 프론트엔드 API 호출 서비스.
-- `server.ts`: Express/Node.js 서버 진입점.
-
-## 💡 Inspiration
-This project was inspired by **Andrew Ng's Agentic Reviewer** (http://paperreview.ai).
-
-## 🛠️ 기술 스택 (Tech Stack)
+## 기술 스택
 
 - **Frontend**: React, Vite, Tailwind CSS
-- **Backend**: Node.js, Vercel Serverless Functions (호환), Google GenAI SDK
-- **AI**: Google Gemini Models (Flash, Pro)
+- **Backend**: Node.js, Vercel Serverless Functions
+- **AI**: Google Gemini Models (gemini-3-flash-preview)
+- **Testing**: Vitest
 
-## 📝 라이선스
+## 문서
+
+- [PIPELINE_ANALYSIS.md](./PIPELINE_ANALYSIS.md) - 파이프라인 구조 및 테스트 결과
+- [PROMPT_STRATEGY.md](./PROMPT_STRATEGY.md) - 프롬프트 전략 및 개선 내역
+
+## Inspiration
+
+This project was inspired by **Andrew Ng's Agentic Reviewer** (http://paperreview.ai)
+
+## 라이선스
 
 이 프로젝트는 교육 목적으로 제작되었습니다.
-=======
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
- terminal 1 : `npx tsx server.ts`
- terminal 2 : `npm run dev`
- 
