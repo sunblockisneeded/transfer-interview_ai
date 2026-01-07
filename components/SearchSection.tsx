@@ -30,7 +30,7 @@ const SearchSection: React.FC<SearchSectionProps> = ({
     onProceedAnyway,
 }) => {
     const [timeout, setTimeout] = useState<number>(180000); // Default 3 min
-    const [model, setModel] = useState<string>('gemini-2.5-flash');
+    const [model, setModel] = useState<string>('gemini-3-flash-preview');
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
@@ -153,7 +153,7 @@ const SearchSection: React.FC<SearchSectionProps> = ({
                                     <div className="relative group/tooltip inline-block">
                                         <HelpCircle className="w-3 h-3 text-slate-400 cursor-help" />
                                         <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-64 p-2 bg-slate-800 text-white text-xs rounded shadow-lg opacity-0 group-hover/tooltip:opacity-100 transition-opacity pointer-events-none z-10">
-                                            gemini 3.0/2.5 pro 모델은 응답 시간이 길어 timeout 시간을 3분이나 없음 옵션을 추천합니다.
+                                            gemini 3.0 모델들은 고성능이므로 timeout 시간을 3분(권장)으로 설정해주세요.
                                         </div>
                                     </div>
                                 </label>
@@ -162,9 +162,8 @@ const SearchSection: React.FC<SearchSectionProps> = ({
                                     onChange={(e) => setModel(e.target.value)}
                                     className="w-full bg-transparent outline-none text-sm font-medium text-slate-700"
                                 >
-                                    <option value="gemini-2.5-flash">Gemini 2.5 Flash (빠름)</option>
-                                    <option value="gemini-2.5-pro">Gemini 2.5 Pro (균형)</option>
-                                    <option value="gemini-3-pro-preview">Gemini 3.0 Pro (고성능)</option>
+                                    <option value="gemini-3-flash-preview">Gemini 3.0 Flash (기본/검색)</option>
+                                    <option value="gemini-3-pro-preview">Gemini 3.0 Pro (고성능/추론)</option>
                                 </select>
                             </div>
                         </div>
@@ -209,8 +208,9 @@ const SearchSection: React.FC<SearchSectionProps> = ({
                     </button>
 
                 </div>
-            )}
-        </div>
+            )
+            }
+        </div >
     );
 };
 

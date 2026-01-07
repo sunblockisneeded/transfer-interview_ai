@@ -6,9 +6,10 @@ import { ResearchSource } from '../types';
 interface MarkdownContentProps {
   content: string;
   sources?: ResearchSource[];
+  noWrapper?: boolean;
 }
 
-const MarkdownContent: React.FC<MarkdownContentProps> = ({ content, sources }) => {
+const MarkdownContent: React.FC<MarkdownContentProps> = ({ content, sources, noWrapper }) => {
   // Extract number from header text to generate ID (e.g., "# 1. Analysis" -> id="section-1")
   const getHeaderId = (text: string) => {
     // Handle "# 1." or "# 1" formats
@@ -23,13 +24,29 @@ const MarkdownContent: React.FC<MarkdownContentProps> = ({ content, sources }) =
     // Clean string for display
     const cleanText = (str: string) => str.replace(/^#+\s*/, '');
 
+    // HTML table (from cleanOutput conversion)
+    if (line.trim().startsWith('<table')) {
+      return (
+        <div
+          key={index}
+          className="my-4 overflow-x-auto"
+          dangerouslySetInnerHTML={{ __html: line }}
+        />
+      );
+    }
+
+    // Skip lines that are part of table (already rendered)
+    if (line.trim().startsWith('<') && (line.includes('</table>') || line.includes('<tr') || line.includes('<td') || line.includes('<th'))) {
+      return null;
+    }
+
     // Headers with automatic IDs for TOC - Using Serif Fonts
     if (line.startsWith('# ')) {
       const id = getHeaderId(line);
       return <h1 key={index} id={id} className="text-3xl font-bold font-serif-kr text-[#1e293b] mt-10 mb-6 scroll-mt-32 pb-3 border-b border-slate-300">{cleanText(line)}</h1>;
     }
     if (line.startsWith('## ')) {
-      const id = getHeaderId(line); 
+      const id = getHeaderId(line);
       return <h2 key={index} id={id} className="text-2xl font-bold font-serif-kr text-[#334155] mt-8 mb-4 scroll-mt-32">{cleanText(line)}</h2>;
     }
     if (line.startsWith('### ')) {
@@ -37,6 +54,11 @@ const MarkdownContent: React.FC<MarkdownContentProps> = ({ content, sources }) =
     }
     if (line.startsWith('#### ')) {
        return <h4 key={index} className="text-lg font-bold font-serif-kr text-[#475569] mt-4 mb-2">{cleanText(line)}</h4>;
+    }
+
+    // Horizontal rule
+    if (line.trim() === '---') {
+      return <hr key={index} className="my-8 border-t border-slate-200" />;
     }
 
     // Lists
@@ -47,7 +69,17 @@ const MarkdownContent: React.FC<MarkdownContentProps> = ({ content, sources }) =
         </li>
       );
     }
-    
+
+    // Numbered lists
+    const numberedMatch = line.trim().match(/^(\d+)\.\s+(.+)$/);
+    if (numberedMatch) {
+      return (
+        <li key={index} className="ml-4 list-decimal text-slate-700 mb-2 pl-1 font-serif-kr leading-relaxed">
+          {parseInline(numberedMatch[2])}
+        </li>
+      );
+    }
+
     // Normal Paragraph
     if (line.trim() === '') return <div key={index} className="h-4" />;
 
@@ -65,12 +97,22 @@ const MarkdownContent: React.FC<MarkdownContentProps> = ({ content, sources }) =
     });
   };
 
-  return (
-    <div className="bg-white p-8 rounded-xl border border-slate-200 shadow-sm">
+  const innerContent = (
+    <>
       <div className="prose prose-slate max-w-none prose-p:font-serif-kr prose-headings:font-serif-kr">
         {content.split('\n').map((line, i) => renderLine(line, i))}
       </div>
       {sources && <SourceList sources={sources} />}
+    </>
+  );
+
+  if (noWrapper) {
+    return innerContent;
+  }
+
+  return (
+    <div className="bg-white p-8 rounded-xl border border-slate-200 shadow-sm">
+      {innerContent}
     </div>
   );
 };

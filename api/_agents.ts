@@ -1,12 +1,31 @@
 import { ai, MODEL_FACT_CHECK, MODEL_RESEARCH, timeContext } from "./_config.js";
+import { cleanOutput } from "./_utils.js";
 
-export const factCheckAndRefine = async (content: string, context: string, sources: any[]): Promise<string> => {
-    if (!content || content.length < 50) return content;
+/**
+ * Fact-check 및 정제 에이전트 (선택적 사용 - 기본 OFF)
+ * @param content 검증할 콘텐츠
+ * @param context 콘텐츠 맥락
+ * @param sources 참조 소스
+ * @param enabled 활성화 여부 (기본값: false)
+ */
+export const factCheckAndRefine = async (
+    content: string,
+    context: string,
+    sources: any[],
+    enabled: boolean = false
+): Promise<string> => {
+    // 비활성화 시 cleanOutput만 적용하고 반환
+    if (!enabled) {
+        return cleanOutput(content);
+    }
+
+    if (!content || content.length < 50) return cleanOutput(content);
+
     const sourceContext = sources.map(s => `- ${s.title}: ${s.uri}`).join('\n');
     const prompt = `
     You are a VERY Strict Fact-Checking Agent.
     Your goal is to verify the accuracy of the following text ("Draft Content") which describes ${context}.
-    
+
 
     [Temporal Context]
     ${timeContext}
@@ -32,35 +51,18 @@ export const factCheckAndRefine = async (content: string, context: string, sourc
             contents: prompt,
             config: { systemInstruction: "Output only the verified Markdown text." }
         });
-        return response.text || content;
+        return cleanOutput(response.text || content);
     } catch (e) {
         console.error("FactCheck failed", e);
-        return content;
+        return cleanOutput(content);
     }
 };
 
-export const reviewContent = async (content: string, context: string): Promise<string> => {
-    const prompt = `
-    You are a Content Formatting Agent.
-    Review the following university admission analysis text (${context}).
-    
-    1. Fix Markdown formatting (headers on new lines).
-    2. Ensure professional Korean (Hangul).
-    3. Remove raw HTML tags.
-    4. Ensure section numbers match the request.
-    
-    Content:
-    ${content}
-  `;
-
-    try {
-        const response = await ai.models.generateContent({
-            model: MODEL_RESEARCH,
-            contents: prompt,
-            config: { systemInstruction: "Output only the corrected Markdown text." }
-        });
-        return response.text || content;
-    } catch (e) {
-        return content;
-    }
+/**
+ * 콘텐츠 리뷰 에이전트 (간소화됨 - cleanOutput만 적용)
+ * @deprecated reviewContent는 더 이상 AI 호출하지 않음. cleanOutput으로 대체됨.
+ */
+export const reviewContent = async (content: string, _context: string): Promise<string> => {
+    // 간소화: AI 호출 없이 cleanOutput만 적용
+    return cleanOutput(content);
 };

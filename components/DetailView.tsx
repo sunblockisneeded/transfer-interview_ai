@@ -13,15 +13,10 @@ const DetailView: React.FC<DetailViewProps> = ({ report }) => {
   const [activeSection, setActiveSection] = useState<string>('');
 
   const sections = [
-    { id: 'section-1', label: '1. 교과과정-해당학교' },
-    { id: 'section-2', label: '2. 교과과정' },
-    { id: 'section-3', label: '3. 교수진 분석' },
-    { id: 'section-4', label: '4. 전공지식' },
-    { id: 'section-5', label: '5. 합격사례-해당학과' },
-    { id: 'section-6', label: '6. 합격사례-해당학교/학과' },
-    { id: 'section-7', label: '7. 불합격-해당학과' },
-    { id: 'section-8', label: '8. 불합격-해당학교' },
-    { id: 'section-9', label: '9. 실전사례' },
+    { id: 'section-1', label: '1. 커리큘럼 분석' },
+    { id: 'section-2', label: '2. 교수진 현황' },
+    { id: 'section-3', label: '3. 교수 연구분야' },
+    { id: 'section-4', label: '4. 면접 트렌드' },
   ];
 
   const scrollToSection = (id: string) => {
@@ -59,44 +54,64 @@ const DetailView: React.FC<DetailViewProps> = ({ report }) => {
       </div>
 
       <div className="space-y-4">
-        {/* 1 & 2. Curriculum Analysis */}
-        <section>
-          <MarkdownContent 
-            content={report.curriculumAnalysis.text} 
-            sources={report.curriculumAnalysis.sources} 
-          />
-        </section>
-
-        <SectionDivider />
-
-        {/* 3. Professor Analysis */}
-        <section id="section-3" className="scroll-mt-32">
-          <div className="bg-white p-8 rounded-xl border border-slate-200 shadow-sm mb-6">
+        {/* 1. Curriculum Analysis */}
+        <section id="section-1" className="scroll-mt-32">
+          <div className="bg-white p-8 rounded-xl border border-slate-200 shadow-sm">
             <h2 className="text-3xl font-bold text-[#1e293b] mb-6 pb-3 border-b border-slate-300 flex items-center gap-2 font-serif-kr">
-              <span className="text-indigo-600">3.</span> {report.university} {report.department} 교수진 분석
+              <span className="text-indigo-600">1.</span> {report.university} {report.department} 커리큘럼 분석
             </h2>
-            <ProfessorList 
-              professors={report.professorAnalysis.professors} 
-              sources={report.professorAnalysis.sources} 
+            <MarkdownContent
+              content={report.curriculumAnalysis.text}
+              sources={report.curriculumAnalysis.sources}
+              noWrapper={true}
             />
           </div>
         </section>
 
         <SectionDivider />
 
-        {/* 4. Major Knowledge Analysis */}
-        <section className="scroll-mt-32">
-          <MarkdownContent content={report.professorAnalysis.majorKnowledgeAnalysis} />
+        {/* 2. Professor Analysis */}
+        <section id="section-2" className="scroll-mt-32">
+          <div className="bg-white p-8 rounded-xl border border-slate-200 shadow-sm">
+            <h2 className="text-3xl font-bold text-[#1e293b] mb-6 pb-3 border-b border-slate-300 flex items-center gap-2 font-serif-kr">
+              <span className="text-indigo-600">2.</span> {report.university} {report.department} 교수진 현황
+            </h2>
+            <ProfessorList
+              professors={report.professorAnalysis.professors}
+              sources={report.professorAnalysis.sources}
+            />
+          </div>
         </section>
 
         <SectionDivider />
 
-        {/* 5-9. Interview Trends & Cases */}
-        <section>
-          <MarkdownContent 
-            content={report.interviewTrends.text} 
-            sources={report.interviewTrends.sources} 
-          />
+        {/* 3. Major Knowledge Analysis */}
+        <section id="section-3" className="scroll-mt-32">
+          <div className="bg-white p-8 rounded-xl border border-slate-200 shadow-sm">
+            <h2 className="text-3xl font-bold text-[#1e293b] mb-6 pb-3 border-b border-slate-300 flex items-center gap-2 font-serif-kr">
+              <span className="text-indigo-600">3.</span> 교수 연구분야 분석
+            </h2>
+            <MarkdownContent
+              content={report.professorAnalysis.majorKnowledgeAnalysis}
+              noWrapper={true}
+            />
+          </div>
+        </section>
+
+        <SectionDivider />
+
+        {/* 4. Interview Trends & Cases */}
+        <section id="section-4" className="scroll-mt-32">
+          <div className="bg-white p-8 rounded-xl border border-slate-200 shadow-sm">
+            <h2 className="text-3xl font-bold text-[#1e293b] mb-6 pb-3 border-b border-slate-300 flex items-center gap-2 font-serif-kr">
+              <span className="text-indigo-600">4.</span> 면접 트렌드 및 실전 사례
+            </h2>
+            <MarkdownContent
+              content={report.interviewTrends.text}
+              sources={report.interviewTrends.sources}
+              noWrapper={true}
+            />
+          </div>
         </section>
       </div>
 

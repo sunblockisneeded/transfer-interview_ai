@@ -1,0 +1,36 @@
+{
+  "status": "pending",
+  "note": "실험 파일이 생성되었습니다. 아래 명령어로 실행하세요.",
+  "execution": {
+    "command": "npx tsx test/experiments/professors-experiment.ts",
+    "workingDirectory": "C:/Users/user/Desktop/편입",
+    "environmentVariable": "API_KEY=<your-api-key>"
+  },
+  "experimentDesign": {
+    "target": "충남대학교 정치외교학과",
+    "professors": ["박영득", "김정현"],
+    "model": "gemini-3-flash-preview",
+    "prompts": {
+      "old": {
+        "description": "기존 프롬프트 (professors.ts에서 사용 중)",
+        "issues": [
+          "Unknown lab 허용",
+          "빈약한 논문 정보 허용",
+          "[cite:] 메타데이터 노출 가능"
+        ]
+      },
+      "new": {
+        "description": "개선 프롬프트 (품질 보장)",
+        "improvements": [
+          "검색 전략 명시",
+          "품질 규칙 강화 (null 사용)",
+          "dataQuality 필드 추가"
+        ]
+      }
+    }
+  },
+  "expectedMetrics": {
+    "issues": "Unknown, 빈약한 논문 정보, cite 메타데이터",
+    "dataQuality": "정보의 구체성, 필드 완성도"
+  }
+}

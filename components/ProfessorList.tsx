@@ -37,11 +37,23 @@ const ProfessorCard: React.FC<{ professor: Professor }> = ({ professor }) => {
       <div className="mt-5 bg-[#f8fafc] p-4 rounded-lg border border-slate-100">
         <div className="flex items-start gap-3">
           <FlaskConical className="w-4 h-4 text-indigo-500 mt-1 flex-shrink-0" />
-          <p className="text-sm text-slate-700 italic leading-relaxed">
-            "{professor.researchTendency || "연구 성향 분석 중..."}"
+          <p className="text-sm text-slate-700 leading-relaxed">
+            <strong>전공:</strong> {professor.researchTendency || "정보 없음"}
           </p>
         </div>
       </div>
+
+      {/* Interview Tip */}
+      {professor.interviewQuestion && (
+        <div className="mt-3 bg-indigo-50 p-4 rounded-lg border border-indigo-100">
+          <div className="flex items-start gap-3">
+            <BookOpen className="w-4 h-4 text-indigo-600 mt-1 flex-shrink-0" />
+            <p className="text-sm text-indigo-800 leading-relaxed">
+              <strong>면접 팁:</strong> {professor.interviewQuestion}
+            </p>
+          </div>
+        </div>
+      )}
 
       {isExpanded && (
         <div className="mt-5 pt-5 border-t border-slate-100 animate-in fade-in slide-in-from-top-2 duration-200">

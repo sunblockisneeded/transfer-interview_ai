@@ -1,7 +1,7 @@
 import type { VercelResponse } from '@vercel/node';
-import { ai, MODEL_RESEARCH, timeContext, TIMEOUTS, PROFESSOR_ANALYSIS_DELAY } from '../_config.js';
-import { callWithTimeout, extractSources, parseJsonSafe, sanitizeInput, generateContentWithSmartRetry } from '../_utils.js';
-import { factCheckAndRefine } from '../_agents.js';
+import { Type, Schema } from "@google/genai";
+import { ai, MODEL_RESEARCH, TIMEOUTS } from '../_config.js';
+import { sanitizeInput, generateContentWithSmartRetry, cleanOutput, parseJsonSafe } from '../_utils.js';
 
 export async function handleProfessors(payload: any, res: VercelResponse) {
     const { uni, dept, config } = payload;
@@ -9,139 +9,131 @@ export async function handleProfessors(payload: any, res: VercelResponse) {
     const safeDept = sanitizeInput(dept);
 
     const model = config?.model || MODEL_RESEARCH;
-    const listTimeout = config?.timeout || TIMEOUTS.PROFESSOR_LIST;
-    const detailTimeout = config?.timeout || TIMEOUTS.PROFESSOR_DETAIL;
-    const macroTimeout = config?.timeout || TIMEOUTS.MACRO_ANALYSIS;
 
-    // 1. First, find the list of professors
-    const listPrompt = `
-    Find the list of professors for ${safeUni} ${safeDept}. at least 5 professors.
-    Output MUST be in Korean.
-    
-    [Temporal Context]
-    ${timeContext}
+    // 1단계: 검색으로 교수진 목록 가져오기
+    const searchPrompt = `
+"${safeUni} ${safeDept} 교수진" 또는 "${safeUni} ${safeDept} 교수 소개"를 검색하여 실제 교수 명단을 확인하세요.
 
-    Return ONLY a JSON object with this structure:
-    {
-      "names": ["Name1", "Name2", "Name3", ...]
-    }
-  `;
+[필수]
+- 반드시 검색하여 실제 재직 중인 교수명 확인
+- 명예교수는 제외하고 현직 교수만 포함
+- 최소 3명 이상의 교수 정보 제공
 
-    let professorNames: string[] = [];
-    try {
-        const listResponse = await generateContentWithSmartRetry(
-            ai.models,
-            model,
-            listPrompt,
-            { tools: [{ googleSearch: {} }] },
-            config?.timeout ? config.timeout : undefined,
-            "Professor List Analysis" // Task Name
-        );
+[출력 형식 - JSON]
+각 교수에 대해 다음 정보를 JSON 배열로 반환:
+- name: 교수 실명 (2-4글자 한글, 예: "홍길동")
+- field: 전공/연구 분야 (예: "국제정치", "비교정치")
+- interviewTip: 이 교수 면접 시 예상 질문 또는 어필 포인트
+`;
 
-        const listJson = parseJsonSafe(listResponse.text || "{}");
-        professorNames = listJson.names || [];
-    } catch (e) {
-        console.error("Failed to get professor list", e);
-        // Fallback: try to proceed or return empty
-    }
-
-    if (professorNames.length === 0) {
-        return res.status(200).json({
-            professors: [],
-            majorKnowledgeAnalysis: "교수진 정보를 찾을 수 없습니다.",
-            sources: []
-        });
-    }
-
-    // 2. Analyze each professor (Sequential with Delay)
-    // Limit to 5 to avoid timeouts
-    const targetProfessors = professorNames.slice(0, 5);
-    // Use configured delay or default
-    const delayMs = config?.delay || PROFESSOR_ANALYSIS_DELAY || 500;
-
-    const professorDetails = await Promise.all(
-        targetProfessors.map(async (name, index) => {
-            // Stagger start times
-            if (index > 0) {
-                await new Promise(resolve => setTimeout(resolve, index * delayMs));
+    const professorSchema: Schema = {
+        type: Type.OBJECT,
+        properties: {
+            professors: {
+                type: Type.ARRAY,
+                description: "교수진 목록 (최소 3명)",
+                items: {
+                    type: Type.OBJECT,
+                    properties: {
+                        name: { type: Type.STRING, description: "교수 실명 (2-4글자 한글)" },
+                        field: { type: Type.STRING, description: "전공/연구 분야" },
+                        interviewTip: { type: Type.STRING, description: "면접 연결 포인트" },
+                    },
+                    required: ["name", "field", "interviewTip"],
+                },
+            },
+            analysisText: {
+                type: Type.STRING,
+                description: "학과 강점 및 면접 어필 포인트 종합 분석 (마크다운 형식, 500자 이상)"
             }
-            return await attemptSearch(name, safeUni, safeDept, model, detailTimeout, config);
-        })
-    );
-
-    const validProfessors = professorDetails.filter(p => p !== null);
-
-    // 3. Synthesize Major Knowledge Analysis
-    // ... (rest of the function)
-    const knowledgePrompt = `
-        Based on the following professor research areas, summarize the core academic focus of ${safeUni} ${safeDept}.
-        Output MUST be in Korean.
-        
-        Professors:
-        ${validProfessors.map(p => `- ${p.name}: ${p.researchTendency} (${p.majorPapers?.join(', ')})`).join('\n')}
-        
-        Structure:
-        # ${safeDept} 주요 연구 분야
-        - Identify 3-4 main research clusters.
-        - Explain the academic strengths of this department.
-    `;
-
-    let majorKnowledgeAnalysis = "";
-    try {
-        const knowledgeResponse = await generateContentWithSmartRetry(
-            ai.models,
-            model,
-            knowledgePrompt,
-            {},
-            config?.timeout ? config.timeout : undefined,
-            "Major Knowledge Analysis" // Task Name
-        );
-        majorKnowledgeAnalysis = knowledgeResponse.text || "";
-    } catch (e) {
-        majorKnowledgeAnalysis = "주요 연구 분야 분석에 실패했습니다.";
-    }
-
-    return res.status(200).json({
-        professors: validProfessors,
-        majorKnowledgeAnalysis,
-        sources: [] // Sources are hard to aggregate perfectly here, but could be added
-    });
-}
-
-async function attemptSearch(name: string, uni: string, dept: string, model: string, timeout: number, config: any) {
-    const prompt = `
-        Analyze professor "${name}" from ${uni} ${dept}.
-        Output MUST be in Korean.
-        
-        [Temporal Context]
-        ${timeContext}
-
-        Return ONLY a JSON object:
-        {
-          "name": "${name}",
-          "lab": "Lab Name (or 'Unknown')",
-          "contact": "Email or Office (or 'Unknown')",
-          "researchTendency": "One sentence summary of research focus (ends with ~하는 경향이 있음)",
-          "majorPapers": ["Paper 1", "Paper 2", "Paper 3"],
-          "details": "Brief description of their academic background or specific interests"
-        }
-    `;
+        },
+        required: ["professors", "analysisText"],
+    };
 
     try {
         const response = await generateContentWithSmartRetry(
             ai.models,
             model,
-            prompt,
-            { tools: [{ googleSearch: {} }] },
-            config?.timeout ? config.timeout : undefined,
-            `Professor Detail: ${name}` // Task Name
+            searchPrompt,
+            {
+                tools: [{ googleSearch: {} }],
+                responseMimeType: "application/json",
+                responseSchema: professorSchema,
+            },
+            config?.timeout || TIMEOUTS.PROFESSOR_LIST,
+            "Professor Analysis (JSON)"
         );
-        let text = response.text || "{}";
 
-        const result = parseJsonSafe(text);
-        if (!result || (!result.lab && !result.researchTendency)) return null;
-        return result;
+        const data = parseJsonSafe(response.text || "{}");
+
+        // 교수 데이터 정규화
+        const professors = (data.professors || [])
+            .filter((p: any) => p.name && /^[가-힣]{2,4}$/.test(p.name)) // 한글 이름만 필터
+            .map((p: any) => ({
+                name: p.name,
+                researchTendency: p.field || '정보 없음',
+                interviewQuestion: p.interviewTip || null,
+                lab: null,
+                contact: null,
+                majorPapers: [],
+                details: ''
+            }));
+
+        const analysisText = cleanOutput(data.analysisText || '');
+
+        return res.status(200).json({
+            professors,
+            majorKnowledgeAnalysis: analysisText,
+            sources: []
+        });
     } catch (e) {
-        return null;
+        console.error('Professor analysis failed:', e);
+        return res.status(200).json({
+            professors: [],
+            majorKnowledgeAnalysis: '교수진 정보를 분석하는 중 오류가 발생했습니다.',
+            sources: []
+        });
     }
+}
+
+// 텍스트에서 교수 정보 간단히 추출
+function extractProfessorsFromText(text: string): any[] {
+    const professors: any[] = [];
+
+    // **교수명** 패턴 찾기
+    const profPattern = /\*\*([^*]+)\*\*\s*[-–]\s*([^→\n]+)(?:→\s*([^\n]+))?/g;
+    let match;
+
+    while ((match = profPattern.exec(text)) !== null) {
+        professors.push({
+            name: match[1].trim(),
+            researchTendency: match[2].trim(),
+            interviewQuestion: match[3]?.trim() || null,
+            lab: null,
+            contact: null,
+            majorPapers: [],
+            details: ''
+        });
+    }
+
+    // 교수 패턴을 못 찾은 경우, 이름만이라도 추출
+    if (professors.length === 0) {
+        const namePattern = /([가-힣]{2,4})\s*교수/g;
+        const names = new Set<string>();
+        while ((match = namePattern.exec(text)) !== null) {
+            names.add(match[1]);
+        }
+        names.forEach(name => {
+            professors.push({
+                name,
+                researchTendency: '상세 정보 본문 참조',
+                lab: null,
+                contact: null,
+                majorPapers: [],
+                details: ''
+            });
+        });
+    }
+
+    return professors;
 }

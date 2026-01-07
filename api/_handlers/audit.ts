@@ -11,35 +11,39 @@ export async function handleAudit(payload: any, res: VercelResponse) {
     const timeout = config?.timeout || TIMEOUTS.MACRO_ANALYSIS; // Use macro timeout for audit
 
     const prompt = `
-    You are a Senior Admissions Auditor for ${safeUni} ${safeDept}.
-    Your job is to strictly audit the gathered research data before it is used for strategy generation.
-    
-    [Temporal Context]
-    ${timeContext}
-    This means that anything other than immutable facts like a circle being round should be questioned and fact-checked by official, reliable sources.
+    당신은 ${safeUni} ${safeDept} 데이터 검증 전문가입니다.
+    아래 데이터에 할루시네이션(가상 정보)이 포함되어 있는지 검증하세요.
+
+    [흔한 할루시네이션 패턴 - 주의!]
+    ⚠️ 다음은 일반적인 학과 과목이지만 실제 대학에는 없을 수 있습니다:
+    - "정치학개론" → 실제는 "정치학원론"일 수 있음
+    - "경제학개론" → 실제는 "경제원론"일 수 있음
+    - "서양정치사상사" → 실제는 "정치사상 1, 2"일 수 있음
+    - "한국정치론", "국제관계학개론" → 존재하지 않을 수 있음
+
+    [검증 방법]
+    1. "${safeUni} ${safeDept} 교육과정" 검색
+    2. "${safeUni} ${safeDept} 교수" 검색
+    3. 데이터에 언급된 과목명/교수명이 실제로 존재하는지 대조
 
     [Data to Audit]
-    *참고: 데이터는 길이 제한으로 인해 일부가 잘려 있을 수 있습니다. JSON 문법 오류보다는 '내용의 질'에 집중하십시오.*
-    1. Curriculum Analysis: ${JSON.stringify(curriculum).substring(0, 3000)}
-    2. Professor Analysis: ${JSON.stringify(professors).substring(0, 3000)}
-    3. Trend Analysis: ${JSON.stringify(trends).substring(0, 3000)}
+    1. Curriculum: ${JSON.stringify(curriculum).substring(0, 3000)}
+    2. Professors: ${JSON.stringify(professors).substring(0, 3000)}
+    3. Trends: ${JSON.stringify(trends).substring(0, 3000)}
 
-    [Audit Tasks]
-    1.**할루시네이션(Hallucination)**: 존재하지 않는 가상의 교수명이나 과목명, 커리큘럼이 포함된 것으로 의심됩니까? 공식 홈페이지의 내용을 통해 검증하십시오.
-    2.**전략적 가치**: 이 데이터만으로 차별화된 입시 전략을 짤 수 있을 만큼 충분히 깊이가 있습니까?
+    [판정 기준]
+    - PASS: 할루시네이션 없음, 정보가 정확함
+    - WARNING: 일부 미확인 정보 있으나 심각하지 않음
+    - FAIL: 명백한 할루시네이션 발견 (가상 과목명/교수명)
 
-    [출력 형식]
-    반드시 한국어로 작성된 JSON 객체를 반환하십시오.
-    
-    JSON 스키마:
+    [출력 형식 - JSON]
     {
-      "score": 85, // 0~100 사이의 품질 점수 (숫자)
-      "status": "PASS" | "WARNING" | "FAIL", // (문자열)
-      "issues": [ // 문제점이 있을 경우 문자열 배열로 나열, 없으면 빈 배열 []
-        "구체적인 문제점 1",
-        "구체적인 문제점 2"
-      ],
-      "feedback": "전략 생성 에이전트를 위한 구체적 조언" // 없으면 빈 문자열 ""
+      "score": 0-100,
+      "status": "PASS" | "WARNING" | "FAIL",
+      "hallucinations": ["발견된 가상 정보 목록"],
+      "verified": ["검증된 정확한 정보 목록"],
+      "issues": ["기타 문제점"],
+      "feedback": "전략 생성을 위한 조언"
     }
     `;
 

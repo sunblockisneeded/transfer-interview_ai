@@ -1,7 +1,6 @@
 import type { VercelResponse } from '@vercel/node';
 import { ai, MODEL_RESEARCH, timeContext, currentYear, TIMEOUTS } from '../_config.js';
-import { callWithTimeout, extractSources, sanitizeInput, generateContentWithSmartRetry } from '../_utils.js';
-import { factCheckAndRefine, reviewContent } from '../_agents.js';
+import { callWithTimeout, extractSources, sanitizeInput, generateContentWithSmartRetry, cleanOutput } from '../_utils.js';
 
 export async function handleTrends(payload: any, res: VercelResponse) {
   const { uni, dept, config } = payload;
@@ -11,32 +10,31 @@ export async function handleTrends(payload: any, res: VercelResponse) {
   const model = config?.model || MODEL_RESEARCH;
   const timeout = config?.timeout || TIMEOUTS.TRENDS;
 
+  // R3 인용강제 프롬프트 (정확성 + 유용성)
   const prompt = `
-    Analyze transfer interview trends for ${safeDept} at ${safeUni}.
-    Output MUST be in Korean.
-    무의식적인 자기소개서나 학업계획서에 대한 언급을 피하세요. 자기소개서나 학업계획서가 현재 학년도의 편입 제출 서류에 확실히 포함될때만 언급하세요.
-    [Temporal Context]
-    ${timeContext}
-    check whether the informations are correct based on current time. 
-    check information could be applied ${currentYear} or ${currentYear + 1}학번.
-    
-    Structure your response with these EXACT headers:
+"${safeUni} ${safeDept} 편입 면접 후기" 또는 "합격 수기"를 검색한 뒤, 실전 가이드를 작성해주세요.
 
-    # 5. ${safeDept} 합격 사례 분석 
-    - General trends in successful transfer interviews for this major (Any university).
-    
-    # 6. ${safeUni} ${safeDept} 합격 사례 및 꿀팁 
-    - Specific tips, hacks, or unique features of this university's interview process.
-    - check if it is the ${currentYear} or ${currentYear + 1} school year.
-    
-    # 7. ${safeDept} 불합격 사례 및 주의사항 
-    - use Charlie Munger's Contrary Thinking method.
-    - Common reasons for rejection in this field (General).
-    - Analyze how to fail to understand how to succeed.
-    
-    # 8. ${safeDept} 실전 면접 대비 사례
-    - Find real-world industry cases or academic case studies relevant to this major.
-  `;
+[필수 규칙]
+1. 반드시 실제 후기/수기를 검색
+2. 검색에서 확인된 정보는 [실제사례] 표시
+3. 일반적인 조언은 [일반] 표시
+
+[작성 내용]
+### 실제 면접 질문 [실제사례]
+- 검색에서 확인된 기출 질문들
+- 각 질문에 대한 답변 방향
+
+### 합격자 공통점 [실제사례]
+- 후기에서 확인된 합격 요인
+
+### 준비 체크리스트
+- D-30: 전공 기초 정리
+- D-7: 예상 질문 답변 연습
+- D-Day: 주의사항
+
+[목적]
+${currentYear}년 편입 면접을 앞둔 학생이 "어떻게 준비해야 하는지" 구체적으로 알 수 있도록 작성
+`;
 
   const response = await generateContentWithSmartRetry(
     ai.models,
@@ -48,8 +46,8 @@ export async function handleTrends(payload: any, res: VercelResponse) {
   );
 
   const extracted = extractSources(response);
-  const formatted = await reviewContent(extracted.text, "Interview Trends");
-  const verified = await factCheckAndRefine(formatted, "Interview Trends", extracted.sources);
+  // 간소화: cleanOutput만 적용 (reviewContent, factCheckAndRefine 제거)
+  const cleaned = cleanOutput(extracted.text);
 
-  return res.status(200).json({ ...extracted, text: verified });
+  return res.status(200).json({ ...extracted, text: cleaned });
 }

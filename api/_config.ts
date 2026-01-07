@@ -4,14 +4,16 @@ import { GoogleGenAI } from "@google/genai";
 export const apiKey = process.env.API_KEY;
 export const ai = new GoogleGenAI({ apiKey: apiKey || '' });
 
-export const MODEL_HIGH = 'gemini-3-pro-preview';
-export const MODEL_MEDIUM = 'gemini-2.5-pro';
-export const MODEL_LOW = 'gemini-2.5-flash';
+// 모델 설정 (2026.01 기준)
+export const MODEL_HIGH = 'gemini-3-pro-preview';     // 복잡한 분석, 전략 수립
+export const MODEL_MEDIUM = 'gemini-3-flash-preview';
+export const MODEL_DEFAULT = MODEL_MEDIUM; // 기본 검색, 팩트체크
 
-export const MODEL_DEFAULT = MODEL_LOW;  // 홈페이지에서 이거랑 연결해서 조정할 수 있도록
-export const MODEL_RESEARCH = MODEL_DEFAULT;
-export const MODEL_SYNTHESIS = MODEL_DEFAULT;
-export const MODEL_FACT_CHECK = MODEL_DEFAULT;
+// 용도별 모델 매핑
+export const MODEL_RESEARCH = MODEL_DEFAULT;   // 검색 기반 분석
+export const MODEL_SYNTHESIS = MODEL_HIGH;     // 전략/질문 생성 (중요)
+export const MODEL_FACT_CHECK = MODEL_DEFAULT; // 팩트체크
+export const MODEL_LOW = MODEL_MEDIUM; // Fallback for retries
 
 // to get current year/ month
 const now = new Date();

@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import DOMPurify from 'dompurify';
 import { AnalysisStep, StepStatus, FullReport, ValidationResult, ResearchResult, ProfessorAnalysisResult } from './types';
-import { validateUniversityAndDepartment, researchCurriculum, researchProfessorsAndKnowledge, researchInterviewTrends, synthesizeStrategy, synthesizeStrategyOnly, synthesizeQuestionsOnly, auditResearch } from './services/geminiService';
+import { validateUniversityAndDepartment, researchCurriculum, researchProfessorsAndKnowledge, researchInterviewTrends, synthesizeStrategy, synthesizeStrategyOnly, synthesizeQuestionsOnly } from './services/geminiService';
 import ProgressSteps from './components/ProgressSteps';
 import DetailView from './components/DetailView';
 import OverallView from './components/OverallView';
@@ -24,10 +24,9 @@ const INITIAL_STEPS: AnalysisStep[] = [
   },
   {
     id: 'review',
-    label: 'Review & Format',
+    label: 'Data Formatting',
     status: StepStatus.IDLE,
     subSteps: [
-      { label: 'Data Validation', status: StepStatus.IDLE },
       { label: 'Formatting Report', status: StepStatus.IDLE }
     ]
   },
@@ -269,34 +268,12 @@ function App() {
         throw new Error("Research data missing");
       }
 
-      // --- STEP 2: REVIEW (AUDIT) ---
+      // --- STEP 2: DATA FORMATTING (간소화: auditResearch 제거) ---
       updateStep('review', StepStatus.LOADING);
-      updateSubStep('review', 'Data Validation', StepStatus.LOADING);
-
-      // Perform Independent Audit
-      const auditResult = await auditResearch(
-        uni,
-        dept,
-        currentCurriculum!,
-        currentProfessors!,
-        currentTrends!,
-        config
-      );
-
-      if (auditResult.status === 'FAIL') {
-        // If audit fails critically, we might want to stop or warn.
-        // For now, just log and proceed but mark as warning?
-        // Or maybe we just show it in the UI?
-        // Let's mark the step as COMPLETED but maybe show a toast?
-        console.warn("Audit Warning:", auditResult.issues);
-      }
-
-      updateSubStep('review', 'Data Validation', StepStatus.COMPLETED);
-
       updateSubStep('review', 'Formatting Report', StepStatus.LOADING);
-      // Formatting is still fast/instant as it's just preparing the data structure, 
-      // but we can simulate a brief pause for UX or just finish.
-      await new Promise(resolve => setTimeout(resolve, 500));
+
+      // 간소화: 데이터 포맷팅만 수행 (빠르게 통과)
+      await new Promise(resolve => setTimeout(resolve, 300));
       updateSubStep('review', 'Formatting Report', StepStatus.COMPLETED);
 
       updateStep('review', StepStatus.COMPLETED);
@@ -439,8 +416,8 @@ function App() {
         <style>
           @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@400;500;600;700&display=swap');
           body { font-family: 'Noto Serif KR', serif; line-height: 1.6; color: #333; max-width: 900px; margin: 0 auto; padding: 40px; }
-          h1 { color: #1e1b4b; border-bottom: 2px solid #e2e8f0; padding-bottom: 10px; }
-          .section { margin-bottom: 40px; }
+          h1 { color: #1e1b4b; border-bottom: 2px solid #e2e8f0; padding-bottom: 10px; margin-top: 40px; }
+          .section { margin-bottom: 30px; padding: 20px; background: #fff; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
           .badge { background: #e0e7ff; color: #3730a3; padding: 4px 8px; border-radius: 4px; font-size: 14px; }
         </style>
       </head>
@@ -452,34 +429,49 @@ function App() {
         </div>
 
         <div class="section">
-          <h1>1. Detailed Analysis</h1>
-          
-          <h2>Curriculum & Trends</h2>
+          <h1>1. 커리큘럼 분석</h1>
           ${mdToHtml(report.curriculumAnalysis.text)}
+        </div>
 
-          <h2>Professors</h2>
+        <div class="section">
+          <h1>2. 교수진 현황</h1>
           ${professorsHtml}
+        </div>
 
-          <h2>Major Knowledge</h2>
+        <div class="section">
+          <h1>3. 교수진 연구 분야 분석</h1>
           ${mdToHtml(report.professorAnalysis.majorKnowledgeAnalysis)}
+        </div>
 
-          <h2>Interview Trends & Cases</h2>
+        <div class="section">
+          <h1>4. 면접 트렌드 및 합격 사례</h1>
           ${mdToHtml(report.interviewTrends.text)}
         </div>
 
         <div class="section">
-          <h1>2. Overall Strategy</h1>
-          <div style="padding: 20px; background-color: #f0f9ff; border-radius: 8px; margin-bottom: 20px;">
+          <h1>5. 종합 면접 전략</h1>
+          <div style="padding: 20px; background-color: #f0f9ff; border-radius: 8px;">
             <p style="white-space: pre-wrap;">${report.strategy.coreStrategy || '전략이 없습니다.'}</p>
           </div>
-          <h2>Core Concepts</h2>
+        </div>
+
+        <div class="section">
+          <h1>6. 핵심 개념 TOP 5</h1>
           ${conceptsHtml}
         </div>
 
         <div class="section">
-          <h1>3. Predicted Questions</h1>
+          <h1>7. 예상 질문 - 상위 난이도</h1>
           ${questionsHtml(report.strategy.questions?.high, 'High', '#dc2626')}
+        </div>
+
+        <div class="section">
+          <h1>8. 예상 질문 - 중위 난이도</h1>
           ${questionsHtml(report.strategy.questions?.medium, 'Medium', '#d97706')}
+        </div>
+
+        <div class="section">
+          <h1>9. 예상 질문 - 기초/인성</h1>
           ${questionsHtml(report.strategy.questions?.low, 'Low', '#16a34a')}
         </div>
       </body>
